@@ -71,6 +71,12 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* BlackCats delcarations */
+void thread_enforce_priority(void);
+bool list_priority_less_func (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -171,7 +177,7 @@ thread_create (const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-
+  
   ASSERT (function != NULL);
 
   /* Allocate thread. */
@@ -237,9 +243,13 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  //list_push_back(&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, list_priority_less_func, NULL);
+  
   t->status = THREAD_READY;
+  thread_enforce_priority(); 
   intr_set_level (old_level);
+
 }
 
 /* Returns the name of the running thread. */
@@ -305,13 +315,15 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread) {
+	//list_push_back(&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, list_priority_less_func, NULL); //changed by blackcats: used to be list_push_back(&ready_list, &cur->elem);
+  }
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -336,6 +348,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_enforce_priority();
+
 }
 
 /* Returns the current thread's priority. */
@@ -343,6 +357,27 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
+}
+
+/* BlackCats
+traverses through all threads to make sure the current running thread 
+has the highest priority, otherwise switch */
+void
+thread_enforce_priority (void)
+{
+  if(!list_empty(&ready_list)) {
+    struct thread * current_thread = thread_current();
+    int curr_thread_pri = current_thread->priority;
+    struct thread * next_thread = list_entry (list_front(&ready_list), struct thread, elem);
+    if ((next_thread->priority > curr_thread_pri) && (thread_current() != idle_thread)) {
+    // switch thread
+	  if(intr_context()) {
+		intr_yield_on_return();
+	  } else {
+		thread_yield();
+	  }
+  }
+  }
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -492,8 +527,9 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else {
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -582,3 +618,15 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+/* BlackCats */
+bool
+list_priority_less_func (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux)
+{
+  struct thread *a_t = list_entry (a, struct thread, elem);
+  struct thread *b_t = list_entry (b, struct thread, elem);
+  return (a_t->priority > b_t->priority);
+}
