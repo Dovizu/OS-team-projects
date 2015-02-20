@@ -458,16 +458,6 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
   return list_insert (e, elem);
 }
 
-/* BlackCats */
-bool
-list_priority_less_func (const struct list_elem *a,
-                             const struct list_elem *b,
-                             void *aux)
-{
-	struct thread *a_t = list_entry (a, struct thread, allelem);
-	struct thread *b_t = list_entry (b, struct thread, allelem);
-	return a_t->priority < b_t->priority;
-}
 
 /* Iterates through LIST and removes all but the first in each
    set of adjacent elements that are equal according to LESS

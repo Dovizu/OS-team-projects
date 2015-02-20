@@ -71,6 +71,12 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* BlackCats delcarations */
+void thread_enforce_priority(void);
+bool list_priority_less_func (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -309,7 +315,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, list_priority_less_function, NULL); //changed by blackcats: used to be list_push_back(&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, list_priority_less_func, NULL); //changed by blackcats: used to be list_push_back(&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -356,7 +362,7 @@ thread_enforce_priority (void)
   struct thread * current_thread = thread_current();
   int curr_thread_pri = current_thread->priority;
   struct thread * next_thread = next_thread_to_run();
-  if (next_thread->priority > curr_thread_pri->priority) {
+  if (next_thread->priority > curr_thread_pri) {
     // switch thread
     thread_yield();
   }
@@ -599,3 +605,15 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+/* BlackCats */
+bool
+list_priority_less_func (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux)
+{
+  struct thread *a_t = list_entry (a, struct thread, allelem);
+  struct thread *b_t = list_entry (b, struct thread, allelem);
+  return a_t->priority < b_t->priority;
+}
