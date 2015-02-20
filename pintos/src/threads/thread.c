@@ -356,7 +356,7 @@ thread_enforce_priority (void)
   struct thread * next_thread = next_thread_to_run();
   if (next_thread->priority > curr_thread_pri->priority) {
     // switch thread
-    schedule();
+    thread_yield();
   }
 }
 
