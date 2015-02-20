@@ -345,6 +345,21 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/* BlackCats
+traverses through all threads to make sure the current running thread 
+has the highest priority, otherwise switch */
+void
+thread_enforce_priority (void)
+{
+  struct thread * current_thread = thread_current();
+  int curr_thread_pri = current_thread->priority;
+  struct thread * next_thread = next_thread_to_run();
+  if (next_thread->priority > curr_thread_pri->priority) {
+    // switch thread
+    schedule();
+  }
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) 
