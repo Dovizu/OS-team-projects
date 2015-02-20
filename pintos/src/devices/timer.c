@@ -89,15 +89,16 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
-
-  ASSERT (intr_get_level () == INTR_ON);
-  //while (timer_elapsed (start) < ticks) 
-  //  thread_yield ();
-  enum intr_level disabled_level = intr_disable();
-  thread_current()->ticks = ticks;
-  thread_block(); 
-  intr_set_level(disabled_level);
+    
+  if(ticks > 0){
+    ASSERT (intr_get_level () == INTR_ON);
+    //while (timer_elapsed (start) < ticks) 
+    //  thread_yield ();
+    enum intr_level disabled_level = intr_disable();
+    thread_current()->ticks = ticks;
+    thread_block(); 
+    intr_set_level(disabled_level);
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
