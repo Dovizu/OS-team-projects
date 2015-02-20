@@ -361,7 +361,7 @@ thread_enforce_priority (void)
 {
   struct thread * current_thread = thread_current();
   int curr_thread_pri = current_thread->priority;
-  struct thread * next_thread = next_thread_to_run();
+  struct thread * next_thread = list_front(&ready_list);
   if (next_thread->priority > curr_thread_pri) {
     // switch thread
     thread_yield();
@@ -615,5 +615,5 @@ list_priority_less_func (const struct list_elem *a,
 {
   struct thread *a_t = list_entry (a, struct thread, allelem);
   struct thread *b_t = list_entry (b, struct thread, allelem);
-  return a_t->priority < b_t->priority;
+  return a_t->priority > b_t->priority;
 }
