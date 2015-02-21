@@ -28,6 +28,11 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+// /* blackcats! list of sleeping thread */
+// static struct list sleeping_thread;
+
+
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -98,6 +103,9 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  
+  /*blackcats initiate sleeping list.*/
+  list_init(&sleeping_thread);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -629,4 +637,39 @@ list_priority_less_func (const struct list_elem *a,
   struct thread *a_t = list_entry (a, struct thread, elem);
   struct thread *b_t = list_entry (b, struct thread, elem);
   return (a_t->priority > b_t->priority);
+}
+
+bool
+shorter_sleep(const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux) 
+{
+  struct thread *a_t = list_entry (a, struct thread, sleepelem);
+  struct thread *b_t = list_entry (b, struct thread, sleepelem);
+  return (a_t->stop < b_t->stop);							 
+}
+
+void 
+add_to_sleep(void) {
+	struct thread *t = thread_current();
+	list_insert_ordered(&sleeping_thread, &t->sleepelem, shorter_sleep, NULL);
+}
+
+void 
+wake_up_threads(int64_t curr_time) {
+  struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&sleeping_thread); e != list_end (&sleeping_thread);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, sleepelem);
+	  if (t->stop == curr_time) {
+		  thread_unblock(t);
+		  list_remove(&t->sleepelem);
+	  } else {
+		  break;
+	  }
+    }
 }
