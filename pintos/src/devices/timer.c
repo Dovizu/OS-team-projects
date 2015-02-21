@@ -95,8 +95,8 @@ timer_sleep (int64_t ticks)
     //while (timer_elapsed (start) < ticks) 
     //  thread_yield ();
     enum intr_level disabled_level = intr_disable();
-	thread_current()->stop = timer_ticks() + ticks;
-	add_to_sleep();
+    thread_current()->stop = timer_ticks() + ticks;
+    add_current_thread_to_sleep();
     thread_block(); 
     intr_set_level(disabled_level);
   }
