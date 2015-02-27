@@ -75,11 +75,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    static tid_t allocate_tid (void);
 
 /* BlackCats delcarations */
-   void thread_enforce_priority(void);
-   bool list_priority_less_func (const struct list_elem *a,
-     const struct list_elem *b,
-     void *aux UNUSED);
-
+   
    bool list_shorter_sleep_func(const struct list_elem *a,
      const struct list_elem *b,
      void *aux UNUSED); 
@@ -219,7 +215,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
     sf = alloc_frame (t, sizeof *sf);
     sf->eip = switch_entry;
     sf->ebp = 0;
-
+    
   /* Add to run queue. */
     thread_unblock (t);
 
@@ -365,7 +361,7 @@ thread_update_priority (void)
   /* find the most important thread waiting for the locks current
   thread is holding */
   struct thread * current_thread = thread_current();
-  int max_pri_from_waiters_of_my_lock = current_thread->original_priority ;
+  int max_pri = current_thread->original_priority;
   struct list_elem *t;
   for (t = list_begin(&current_thread->lockshold); 
     t != list_end(&current_thread->lockshold);
@@ -374,22 +370,16 @@ thread_update_priority (void)
   {
     struct lock * l = list_entry(t, struct lock, holderelem);
     struct semaphore *s = &(l->semaphore);
-    struct list_elem *thread_elem = list_max(&(s->waiters), list_priority_more_func, NULL);
+    if (!list_empty(&s->waiters)) {
+      struct list_elem *thread_elem = list_max(&s->waiters, list_priority_more_func, NULL);
     
-    struct thread *max_priority_thread = list_entry(thread_elem, struct thread, elem);
-    
-    if (max_priority_thread->priority > max_pri_from_waiters_of_my_lock) {
-      max_pri_from_waiters_of_my_lock = max_priority_thread->priority;
-    }
+      struct thread *max_priority_thread = list_entry(thread_elem, struct thread, elem);
+      if (max_priority_thread->priority > max_pri) {
+        max_pri = max_priority_thread->priority;
+      }
+    } 
   }
-  current_thread->priority = max_pri_from_waiters_of_my_lock;
-  // /* set the current thread's priority to the most important waiting thread, 
-  // achieving priority donation */
-  // if (current_thread->original_priority > max_pri_from_waiters_of_my_lock) {
-    // current_thread->priority = current_thread->original_priority;  
-  // } else {
-    // current_thread->priority = max_pri_from_waiters_of_my_lock;
-  // }
+  current_thread->priority = max_pri;
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -397,9 +387,14 @@ void
 thread_set_priority (int new_priority) 
 {
   enum intr_level disabled_level = intr_disable();
-  thread_current ()->original_priority = new_priority;
-  thread_update_priority();
-  thread_enforce_priority();
+  if (thread_current ()->priority > new_priority && thread_current ()->original_priority != thread_current()->priority) {
+    thread_current ()->original_priority = new_priority;
+    
+  } else {
+    thread_current ()->original_priority = new_priority;
+    thread_update_priority();
+    thread_enforce_priority();
+  }
   intr_set_level(disabled_level);
 }
 
@@ -423,13 +418,13 @@ thread_enforce_priority (void)
     struct thread * next_thread = list_entry (next_thread_elem, struct thread, elem);
     if ((next_thread->priority > curr_thread_pri) && (thread_current() != idle_thread)) {
     // switch thread
-     if(intr_context()) {
-      intr_yield_on_return();
-    } else {
-      thread_yield();
+      if(intr_context()) {
+        intr_yield_on_return();
+      } else {
+        thread_yield();
+      }
     }
   }
-}
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -552,7 +547,7 @@ thread_get_recent_cpu (void)
     /* blackcats after checkpoint 1*/
     t->original_priority = priority;
     t->lockwait = NULL;
-    list_init (&(t->lockshold));
+    list_init (&t->lockshold);
     
     
     t->magic = THREAD_MAGIC;
@@ -747,5 +742,4 @@ update_priority_with_priority(struct thread *t, int priority, int count){
       }
     }
   }
-  
 }

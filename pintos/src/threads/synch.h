@@ -24,7 +24,7 @@ struct lock
     struct semaphore semaphore; /* Binary semaphore controlling access. */
 	
 	/* blackcats, donation, after checkpoint 1.*/
-	struct list_elem holderelem;  /* List element for thread's list of lock held*/
+	  struct list_elem holderelem;  /* List element for thread's list of lock held*/
   };
 
 void lock_init (struct lock *);
