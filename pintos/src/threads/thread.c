@@ -79,6 +79,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux);
+   void thread_update_priority(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -349,13 +350,41 @@ thread_foreach (thread_action_func *func, void *aux)
   }
 }
 
+void
+thread_update_priority (void)
+{
+  /* find the most important thread waiting for the locks current
+  thread is holding */
+  struct thread * current_thread = thread_current();
+  unsigned int i;
+  int max_pri_from_waiters_of_my_lock = -1;
+  struct list_elem *t;
+  for (t = list_begin(&current_thread->lockshold); 
+    t != list_end(&current_thread->lockshold);
+    t = list_next(t)
+    ) 
+  {
+    struct thread * this_thread = list_entry(t, struct lock, holderelem);
+    if (this_thread->priority > max_pri_from_waiters_of_my_lock) {
+      max_pri_from_waiters_of_my_lock = this_thread->priority;
+    }
+  }
+  /* set the current thread's priority to the most important waiting thread, 
+  achieving priority donation */
+  if (current_thread->original_priority > max_pri_from_waiters_of_my_lock) {
+    current_thread->priority = current_thread->original_priority;  
+  } else {
+    current_thread->priority = max_pri_from_waiters_of_my_lock;
+  }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  thread_current ()->original_priority = new_priority;
+  thread_update_priority();
   thread_enforce_priority();
-
 }
 
 /* Returns the current thread's priority. */
@@ -642,6 +671,16 @@ next_thread_to_run (void)
     struct thread *a_t = list_entry (a, struct thread, elem);
     struct thread *b_t = list_entry (b, struct thread, elem);
     return (a_t->priority > b_t->priority);
+  }
+
+  bool
+  list_priority_more_func (const struct list_elem *a,
+   const struct list_elem *b,
+   void *aux)
+  {
+    struct thread *a_t = list_entry (a, struct thread, elem);
+    struct thread *b_t = list_entry (b, struct thread, elem);
+    return (a_t->priority < b_t->priority);
   }
 
   bool
