@@ -79,7 +79,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux);
-    void add_current_thread_to_sleep(void);
+   void add_current_thread_to_sleep(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -717,4 +717,16 @@ next_thread_to_run (void)
       break;
     }
   }
+}
+void 
+update_priority_with_priority(struct thread *t, int priority, int count){
+  if(count > 0){
+    if(priority > t->priority){
+      t->priority = priority;
+      if(t->lockwait != NULL){
+        update_priority_with_priority(t->lockwait->holder, priority, count-1);
+      }
+    }
+  }
+  
 }
