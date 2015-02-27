@@ -32,6 +32,11 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+/*Blackcat after checkpoint 1*/
+bool list_higher_priority_sema (const struct list_elem *a,
+   const struct list_elem *b,
+   void *aux);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -350,8 +355,8 @@ cond_broadcast (struct condition *cond, struct lock *lock)
    const struct list_elem *b,
    void *aux)
   {
-    struct semaphore *a_s = list_entry(a, struct semaphore_elem, elem)->semaphore;
-    struct semaphore *b_s = list_entry(b, struct semaphore_elem, elem)->semaphore;
+    struct semaphore a_s = list_entry(a, struct semaphore_elem, elem)->semaphore;
+    struct semaphore b_s = list_entry(b, struct semaphore_elem, elem)->semaphore;
 	struct thread *a_t = list_entry(list_pop_front(a_s->waiter), struct thread, elem);
 	struct thread *b_t = list_entry(list_pop_front(b_s->waiter), struct thread, elem);
     return (a_t->priority > b_t->priority);
