@@ -78,7 +78,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    void thread_enforce_priority(void);
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
-     void *aux);
+     void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -637,7 +637,7 @@ next_thread_to_run (void)
   bool
   list_priority_less_func (const struct list_elem *a,
    const struct list_elem *b,
-   void *aux)
+   void *aux UNUSED)
   {
     struct thread *a_t = list_entry (a, struct thread, elem);
     struct thread *b_t = list_entry (b, struct thread, elem);
