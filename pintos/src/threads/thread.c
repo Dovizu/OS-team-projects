@@ -79,7 +79,6 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux);
-   void thread_update_priority(void); 
     void add_current_thread_to_sleep(void);
 
 /* Initializes the threading system by transforming the code
@@ -357,7 +356,6 @@ thread_update_priority (void)
   /* find the most important thread waiting for the locks current
   thread is holding */
   struct thread * current_thread = thread_current();
-  unsigned int i;
   int max_pri_from_waiters_of_my_lock = -1;
   struct list_elem *t;
   for (t = list_begin(&current_thread->lockshold); 
