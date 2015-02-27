@@ -79,6 +79,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux);
+   bool list_priority_more_func (const struct list_elem *a,
+   const struct list_elem *b,
+   void *aux);
    void add_current_thread_to_sleep(void);
 
 /* Initializes the threading system by transforming the code
@@ -250,7 +253,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
     old_level = intr_disable ();
     ASSERT (t->status == THREAD_BLOCKED);
-  //list_push_back(&ready_list, &t->elem);
+    //list_push_back(&ready_list, &t->elem);
     list_insert_ordered (&ready_list, &t->elem, list_priority_less_func, NULL);
     
     t->status = THREAD_READY;
@@ -356,25 +359,31 @@ thread_update_priority (void)
   /* find the most important thread waiting for the locks current
   thread is holding */
   struct thread * current_thread = thread_current();
-  int max_pri_from_waiters_of_my_lock = -1;
+  int max_pri_from_waiters_of_my_lock = current_thread->original_priority ;
   struct list_elem *t;
   for (t = list_begin(&current_thread->lockshold); 
     t != list_end(&current_thread->lockshold);
     t = list_next(t)
     ) 
   {
-    struct thread * this_thread = list_entry(t, struct lock, holderelem);
-    if (this_thread->priority > max_pri_from_waiters_of_my_lock) {
-      max_pri_from_waiters_of_my_lock = this_thread->priority;
+    struct lock * l = list_entry(t, struct lock, holderelem);
+    struct semaphore *s = &(l->semaphore);
+    struct list_elem *thread_elem = list_max(&(s->waiters), list_priority_more_func, NULL);
+    
+    struct thread *max_priority_thread = list_entry(thread_elem, struct thread, elem);
+    
+    if (max_priority_thread->priority > max_pri_from_waiters_of_my_lock) {
+      max_pri_from_waiters_of_my_lock = max_priority_thread->priority;
     }
   }
-  /* set the current thread's priority to the most important waiting thread, 
-  achieving priority donation */
-  if (current_thread->original_priority > max_pri_from_waiters_of_my_lock) {
-    current_thread->priority = current_thread->original_priority;  
-  } else {
-    current_thread->priority = max_pri_from_waiters_of_my_lock;
-  }
+  current_thread->priority = max_pri_from_waiters_of_my_lock;
+  // /* set the current thread's priority to the most important waiting thread, 
+  // achieving priority donation */
+  // if (current_thread->original_priority > max_pri_from_waiters_of_my_lock) {
+    // current_thread->priority = current_thread->original_priority;  
+  // } else {
+    // current_thread->priority = max_pri_from_waiters_of_my_lock;
+  // }
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -404,7 +413,8 @@ thread_enforce_priority (void)
   if(!list_empty(&ready_list)) {
     struct thread * current_thread = thread_current();
     int curr_thread_pri = current_thread->priority;
-    struct thread * next_thread = list_entry (list_front(&ready_list), struct thread, elem);
+    struct list_elem * next_thread_elem = list_max(&ready_list, list_priority_more_func, NULL);
+    struct thread * next_thread = list_entry (next_thread_elem, struct thread, elem);
     if ((next_thread->priority > curr_thread_pri) && (thread_current() != idle_thread)) {
     // switch thread
      if(intr_context()) {
@@ -462,7 +472,6 @@ thread_get_recent_cpu (void)
     struct semaphore *idle_started = idle_started_;
     idle_thread = thread_current ();
     sema_up (idle_started);
-
     for (;;) 
     {
       /* Let someone else run. */
@@ -568,10 +577,14 @@ thread_get_recent_cpu (void)
 static struct thread *
 next_thread_to_run (void) 
 {
-  if (list_empty (&ready_list))
+  if (list_empty (&ready_list)) {
     return idle_thread;
-  else {
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  } else {
+    struct list_elem *thread_elem = list_max(&ready_list, list_priority_more_func, NULL);
+    list_remove(thread_elem);
+    struct thread * next = list_entry (thread_elem, struct thread, elem);
+    return next;
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
   }
 }
 
@@ -720,7 +733,7 @@ next_thread_to_run (void)
 }
 void 
 update_priority_with_priority(struct thread *t, int priority, int count){
-  if(count > 0){
+  if(count >= 0){
     if(priority > t->priority){
       t->priority = priority;
       if(t->lockwait != NULL){
