@@ -35,7 +35,7 @@
 /*Blackcat after checkpoint 1*/
 bool list_higher_priority_sema (const struct list_elem *a,
    const struct list_elem *b,
-   void *aux);
+   void *aux UNUSED);
 
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
@@ -353,7 +353,7 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   bool
   list_higher_priority_sema (const struct list_elem *a,
    const struct list_elem *b,
-   void *aux)
+   void *aux UNUSED)
   {
     struct semaphore a_s = list_entry(a, struct semaphore_elem, elem)->semaphore;
     struct semaphore b_s = list_entry(b, struct semaphore_elem, elem)->semaphore;
