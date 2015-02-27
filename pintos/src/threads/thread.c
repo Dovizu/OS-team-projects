@@ -79,6 +79,8 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux);
+     
+  void add_current_thread_to_sleep(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -353,8 +355,11 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  enum intr_level disabled_level = intr_disable();
   thread_current ()->priority = new_priority;
   thread_enforce_priority();
+  
+  intr_set_level(disabled_level);
 
 }
 
