@@ -157,5 +157,5 @@ bool list_priority_less_func (const struct list_elem *a,
                              void *aux);
 void wake_up_threads (int64_t);
 void add_current_thread_to_sleep (void);
-
+void update_priority_with_priority(struct thread *t, int priority, int count);
 #endif /* threads/thread.h */
