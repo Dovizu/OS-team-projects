@@ -97,10 +97,10 @@ struct thread
   	int64_t stop;						/* when the thread has to wake up.*/
 	
 	
-	/* blackcats, donation, after checkpoint 1.*/
-	struct lock *lockwait; 				/* lock the thread is waiting for.*/
-	struct list lockshold;        		/* List of lock its holding. */
-	int original_priority;				/* the original priority initiated or set. */
+  	/* blackcats, donation, after checkpoint 1.*/
+  	struct lock *lockwait; 				/* lock the thread is waiting for.*/
+  	struct list lockshold;        		/* List of lock its holding. */
+  	int original_priority;				/* the original priority initiated or set. */
 	
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
