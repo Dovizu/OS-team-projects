@@ -80,6 +80,10 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
      const struct list_elem *b,
      void *aux UNUSED);
 
+   bool list_shorter_sleep_func(const struct list_elem *a,
+     const struct list_elem *b,
+     void *aux UNUSED); 
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -647,7 +651,7 @@ next_thread_to_run (void)
   bool
   list_shorter_sleep_func(const struct list_elem *a,
    const struct list_elem *b,
-   void *aux) 
+   void *aux UNUSED) 
   {
     struct thread *a_t = list_entry (a, struct thread, sleepelem);
     struct thread *b_t = list_entry (b, struct thread, sleepelem);
