@@ -197,6 +197,11 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  enum intr_level disabled_level = intr_disable();  
+  if(lock->holder != NULL){
+      update_priority_with_priority(lock->holder, thread_current()->priority, 8);
+  }
+  intr_set_level(disabled_level);  
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }

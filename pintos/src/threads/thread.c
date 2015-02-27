@@ -677,4 +677,16 @@ next_thread_to_run (void)
       break;
     }
   }
+   
+ void 
+ update_priority_with_priority(struct thread *t, int priority, int count){
+    if(count > 0){
+        if(priority > t->priority){
+            t->priority = priority;
+            if(t->lockwait != NULL){
+                update_priority_with_priority(t->lockwait->holder, priority, count-1);
+            }
+        }
+    }
+ }  
 }
