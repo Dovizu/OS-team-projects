@@ -86,7 +86,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
  
    bool list_priority_more_func (const struct list_elem *a,
    const struct list_elem *b,
-   void *aux);
+   void *aux UNUSED);
 
    void add_current_thread_to_sleep(void);
 
@@ -696,7 +696,7 @@ next_thread_to_run (void)
   bool
   list_priority_more_func (const struct list_elem *a,
    const struct list_elem *b,
-   void *aux)
+   void *aux UNUSED)
   {
     struct thread *a_t = list_entry (a, struct thread, elem);
     struct thread *b_t = list_entry (b, struct thread, elem);
