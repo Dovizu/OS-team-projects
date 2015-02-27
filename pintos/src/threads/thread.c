@@ -323,7 +323,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
     ASSERT (!intr_context ());
     old_level = intr_disable ();
     if (cur != idle_thread) {
-	//list_push_back(&ready_list, &cur->elem);
+    //list_push_back(&ready_list, &cur->elem);
     list_insert_ordered (&ready_list, &cur->elem, list_priority_less_func, NULL); //changed by blackcats: used to be list_push_back(&ready_list, &cur->elem);
   }
   cur->status = THREAD_READY;
@@ -503,6 +503,13 @@ thread_get_recent_cpu (void)
     strlcpy (t->name, name, sizeof t->name);
     t->stack = (uint8_t *) t + PGSIZE;
     t->priority = priority;
+    
+    /* blackcats after checkpoint 1*/
+    t->original_priority = priority;
+    t->lockwait = NULL;
+    list_init (&(t->lockshold));
+    
+    
     t->magic = THREAD_MAGIC;
 
     old_level = intr_disable ();
@@ -644,7 +651,7 @@ next_thread_to_run (void)
   {
     struct thread *a_t = list_entry (a, struct thread, sleepelem);
     struct thread *b_t = list_entry (b, struct thread, sleepelem);
-    return (a_t->stop < b_t->stop);							 
+    return (a_t->stop < b_t->stop);                          
   }
 
   void 

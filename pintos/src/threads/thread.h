@@ -93,8 +93,15 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
 	
   	/*blackcats sleep alarm */
-  	struct list_elem sleepelem;			/* List elemeng for sleeping thread list. */
+  	struct list_elem sleepelem;			/* List element for sleeping thread list. */
   	int64_t stop;						/* when the thread has to wake up.*/
+	
+	
+	/* blackcats, donation, after checkpoint 1.*/
+	struct lock *lockwait; 				/* lock the thread is waiting for.*/
+	struct list lockshold;        		/* List of lock its holding. */
+	int original_priority;				/* the original priority initiated or set. */
+	
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 

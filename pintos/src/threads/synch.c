@@ -296,7 +296,11 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  /* blackcats after checkpoint 1*/
+  list_insert_ordered(&cond->waiters, &waiter.elem, list_higher_priority_sema, NULL);
+  
+  
+  //list_push_back (&cond->waiters, &waiter.elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -337,3 +341,18 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
+
+
+  
+/* BlackCats after checkpoint 1 */
+  bool
+  list_higher_priority_sema (const struct list_elem *a,
+   const struct list_elem *b,
+   void *aux)
+  {
+    struct semaphore *a_s = list_entry(a, struct semaphore_elem, elem)->semaphore;
+    struct semaphore *b_s = list_entry(b, struct semaphore_elem, elem)->semaphore;
+	struct thread *a_t = list_entry(list_pop_front(a_s->waiter), struct thread, elem);
+	struct thread *b_t = list_entry(list_pop_front(b_s->waiter), struct thread, elem);
+    return (a_t->priority > b_t->priority);
+  }
