@@ -125,6 +125,7 @@ sema_up (struct semaphore *sema)
   if ((thread_current()->priority) != (thread_current()-> original_priority)) {
 	   thread_update_priority();
   }
+  sema->value++;  
   if (!list_empty (&sema->waiters)) {
 	  struct list_elem *max = list_min(&sema->waiters, list_priority_less_func, NULL);
     struct thread *next = list_entry(max, struct thread, elem);
@@ -139,7 +140,6 @@ sema_up (struct semaphore *sema)
   // if ((thread_current()->priority) != (thread_current()-> original_priority)) {
 	  // thread_update_priority();
   // }
-  sema->value++;
   
   intr_set_level (old_level);
   
