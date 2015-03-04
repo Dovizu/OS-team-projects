@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "./fixed-point.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -450,12 +451,23 @@ thread_get_load_avg (void)
   return 0;
 }
 
+void
+thread_calculate_recent_cpu(struct thread *t){
+  fixed_point_t recent_cpu = fix_div(fix_mult(load_avg, fix_int(2)), fix_add(fix_mult(load_avg, fix_int(2)), fix_int(1)));
+  recent_cpu = fix_mult(recent_cpu, t->recent_cpu);
+  recent_cpu = fix_add(recent_cpu, t->nice);
+  t->recent_cpu = recent_cpu;
+}
+
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  struct thread *cur = thread_current();
+  enum intr_level old_level = intr_disable ();     
+  int recent_cpu = fix_round(fix_mult(cur->recent_cpu, fix_int(100)));
+  intr_set_level(old_level);
+  return recent_cpu;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
