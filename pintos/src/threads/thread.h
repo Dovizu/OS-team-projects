@@ -101,7 +101,11 @@ struct thread
   	struct lock *lockwait; 				/* lock the thread is waiting for.*/
   	struct list lockshold;        		/* List of lock its holding. */
   	int original_priority;				/* the original priority initiated or set. */
-	
+
+    /* blackcats, advanced scheduler. */
+    fixed_point_t nice;
+    fixed_point_t recent_cpu;
+    
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -152,6 +156,7 @@ int thread_get_load_avg (void);
 /* blackcats header*/
 /* thread sleeping */
 void thread_enforce_priority(void);
+void thread_recalculate_priority(void);
 bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux UNUSED);

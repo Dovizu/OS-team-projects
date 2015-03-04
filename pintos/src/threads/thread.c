@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -113,6 +114,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
   /* Set up a thread structure for the running thread. */
     initial_thread = running_thread ();
+    /* adding nice and setting up priority */
+    initial_thread->nice = fix_int(0);
+    
     init_thread (initial_thread, "main", PRI_DEFAULT);
     initial_thread->status = THREAD_RUNNING;
     initial_thread->tid = allocate_tid ();
@@ -386,6 +390,9 @@ thread_update_priority (void)
 void
 thread_set_priority (int new_priority) 
 {
+  if (thread_mlfqs) {
+    return;
+  }
   enum intr_level disabled_level = intr_disable();
   if (thread_current ()->priority > new_priority && thread_current ()->original_priority != thread_current()->priority) {
     thread_current ()->original_priority = new_priority;
@@ -427,11 +434,25 @@ thread_enforce_priority (void)
   }
 }
 
+
+void
+thread_recalculate_priority(void)
+{
+  struct thread *cur = thread_current();
+  
+  fixed_point_t recent_divided_by_four = fix_unscale(cur->recent_cpu, 4);  
+  fixed_point_t nice_times_two = fix_scale(cur->nice, 2);
+  fixed_point_t to_subtract = fix_add (recent_divided_by_four, nice_times_two); 
+  fixed_point_t pri = fix_sub(fix_int (PRI_MAX), to_subtract);
+  cur->priority = fix_round (pri);
+}
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
   /* Not yet implemented. */
+  thread_current()->nice = fix_int (nice) ;
+  thread_recalculate_priority();
 }
 
 /* Returns the current thread's nice value. */
@@ -439,7 +460,7 @@ int
 thread_get_nice (void) 
 {
   /* Not yet implemented. */
-  return 0;
+  return fix_round(thread_current()->nice);
 }
 
 /* Returns 100 times the system load average. */
@@ -542,7 +563,14 @@ thread_get_recent_cpu (void)
     t->status = THREAD_BLOCKED;
     strlcpy (t->name, name, sizeof t->name);
     t->stack = (uint8_t *) t + PGSIZE;
-    t->priority = priority;
+    
+    if (thread_mlfqs) {
+      int nice = fix_round(thread_current()->nice);
+      t->priority = PRI_MAX - nice * 2;
+      t->nice = fix_int (nice);
+    } else { 
+      t->priority = priority;
+    }
     
     /* blackcats after checkpoint 1*/
     t->original_priority = priority;
