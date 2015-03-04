@@ -119,8 +119,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
   /* Set up a thread structure for the running thread. */
     initial_thread = running_thread ();
     /* adding nice and setting up priority */
-    initial_thread->nice = fix_int(0);
-    
+
     init_thread (initial_thread, "main", PRI_DEFAULT);
     initial_thread->status = THREAD_RUNNING;
     initial_thread->tid = allocate_tid ();
@@ -370,6 +369,9 @@ thread_update_priority (void)
 {
   /* find the most important thread waiting for the locks current
   thread is holding */
+  if (thread_mlfqs) {
+    return;
+  }
   struct thread * current_thread = thread_current();
   int max_pri = current_thread->original_priority;
   struct list_elem *t;
@@ -594,7 +596,10 @@ thread_get_recent_cpu (void)
     t->stack = (uint8_t *) t + PGSIZE;
     
     if (thread_mlfqs) {
-      int nice = fix_round(thread_current()->nice);
+      int nice = 0; 
+      if (is_thread(running_thread())) {
+        nice = fix_round(thread_current()->nice);
+      }
       t->recent_cpu = fix_int(0);
       t->nice = fix_int (nice);
       thread_recalculate_priority(t, NULL);
