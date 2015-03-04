@@ -488,6 +488,9 @@ thread_get_load_avg (void)
 void thread_calc_load_avg(void)
 {
   int ready_threads = list_size(&ready_list);
+  if (thread_current() != idle_thread) {
+    ready_threads += 1;
+  }
   load_avg = fix_add(fix_mul(fix_frac(59,60),load_avg), fix_frac(ready_threads, 60));
 }
 
