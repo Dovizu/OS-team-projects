@@ -165,6 +165,24 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
       intr_yield_on_return ();
   }
 
+/*Update priority, recent_cpu, load_avg as neccesary*/
+  void
+  advanced_thread_tick (int64_t ticks){
+    if(thread_mlfqs){
+      fixed_point_t cur_recent_cpu = thread_current()->recent_cpu;
+      thread_current()->recent_cpu = fix_add(cur_recent_cpu, fix_int(1));
+
+      if(ticks % TIMER_FREQ == 0){
+        thread_calc_load_avg();
+        thread_foreach(thread_calculate_recent_cpu, NULL);
+      }
+      if(ticks % 4 == 0){
+        thread_foreach(thread_recalculate_priority, NULL);
+        thread_enforce_priority();
+      }
+    }
+  }
+
 /* Prints thread statistics. */
   void
   thread_print_stats (void) 
@@ -440,23 +458,29 @@ thread_enforce_priority (void)
 
 
 void
-thread_recalculate_priority(void)
+thread_recalculate_priority(struct thread *t, void * aux )
 {
-  struct thread *cur = thread_current();
-  
-  fixed_point_t recent_divided_by_four = fix_unscale(cur->recent_cpu, 4);  
-  fixed_point_t nice_times_two = fix_scale(cur->nice, 2);
+  fixed_point_t recent_divided_by_four = fix_unscale(t->recent_cpu, 4);  
+  fixed_point_t nice_times_two = fix_scale(t->nice, 2);
   fixed_point_t to_subtract = fix_add (recent_divided_by_four, nice_times_two); 
   fixed_point_t pri = fix_sub(fix_int (PRI_MAX), to_subtract);
-  cur->priority = fix_round (pri);
+  int priority = fix_round(pri);
+  if(priority > PRI_MAX){
+    priority = PRI_MAX;
+  }
+  if(priority < PRI_MIN){
+    priority = PRI_MIN;
+  }
+  t->priority = priority;
 }
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice) 
 {
-  /* Not yet implemented. */
+  ASSERT(nice <= 20);
+  ASSERT(nice >= -20);
   thread_current()->nice = fix_int (nice) ;
-  thread_recalculate_priority();
+  thread_recalculate_priority(thread_current(), NULL);
 }
 
 /* Returns the current thread's nice value. */
@@ -481,7 +505,7 @@ void thread_calc_load_avg(void)
 }
 
 void
-thread_calculate_recent_cpu(struct thread *t){
+thread_calculate_recent_cpu(struct thread *t, void *aux UNUSED){
   fixed_point_t recent_cpu = fix_div(fix_mul(load_avg, fix_int(2)), fix_add(fix_mul(load_avg, fix_int(2)), fix_int(1)));
   recent_cpu = fix_mul(recent_cpu, t->recent_cpu);
   recent_cpu = fix_add(recent_cpu, t->nice);

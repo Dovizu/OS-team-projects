@@ -156,8 +156,8 @@ int thread_get_load_avg (void);
 /* blackcats header*/
 /* thread sleeping */
 void thread_enforce_priority(void);
-void thread_recalculate_priority(void);
-void thread_calculate_recent_cpu(struct thread *t);
+void thread_recalculate_priority(struct thread *t, void *aux UNUSED);
+void thread_calculate_recent_cpu(struct thread *t, void *aux UNUSED);
 bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux UNUSED);
