@@ -465,6 +465,7 @@ thread_set_nice (int nice)
   ASSERT(nice >= -20);
   thread_current()->nice = fix_int (nice) ;
   thread_recalculate_priority(thread_current(), NULL);
+  thread_enforce_priority();
 }
 
 /* Returns the current thread's nice value. */
@@ -594,8 +595,9 @@ thread_get_recent_cpu (void)
     
     if (thread_mlfqs) {
       int nice = fix_round(thread_current()->nice);
-      t->priority = PRI_MAX - nice * 2;
+      t->recent_cpu = fix_int(0);
       t->nice = fix_int (nice);
+      thread_recalculate_priority(t, NULL);
     } else { 
       t->priority = priority;
     }
