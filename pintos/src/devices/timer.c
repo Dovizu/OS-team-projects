@@ -176,16 +176,16 @@ timer_print_stats (void)
   void
   advanced_thread_tick (void){
     if(thread_mlfqs){
-      //fixed_point_t cur_recent_cpu = thread_current()->recent_cpu;
-      //thread_current()->recent_cpu = fix_add(cur_recent_cpu, fix_int(1));
+      fixed_point_t cur_recent_cpu = thread_current()->recent_cpu;
+      thread_current()->recent_cpu = fix_add(cur_recent_cpu, fix_int(1));
 
       if(ticks % TIMER_FREQ == 0){
-        //thread_calc_load_avg();
-        //thread_foreach(thread_calculate_recent_cpu, NULL);
+        thread_calc_load_avg();
+        thread_foreach(thread_calculate_recent_cpu, NULL);
       }
       if(ticks % 4 == 0){
-        //thread_foreach(thread_recalculate_priority, NULL);
-        //thread_enforce_priority();
+        thread_foreach(thread_recalculate_priority, NULL);
+        thread_enforce_priority();
       }
     }
   }
