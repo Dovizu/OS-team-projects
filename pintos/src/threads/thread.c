@@ -14,6 +14,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#include "threads/fixed-point.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -86,6 +87,8 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
    void add_current_thread_to_sleep(void);
 
+   static fixed_point_t load_avg;
+   void thread_calc_load_avg(void);
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -110,6 +113,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
     
   /*blackcats initiate sleeping list.*/
     list_init(&sleeping_thread);
+    load_avg = fix_int(0);
 
   /* Set up a thread structure for the running thread. */
     initial_thread = running_thread ();
@@ -446,8 +450,13 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return 100*fix_round(load_avg);
+}
+/* Recalculates the system load average. */
+void thread_calc_load_avg(void)
+{
+  int ready_threads = list_size(&ready_list);
+  load_avg = fix_add(fix_mul(fix_frac(59,60),load_avg), fix_frac(ready_threads, 60));
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
