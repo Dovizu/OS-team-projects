@@ -14,9 +14,8 @@
 #include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
-#include "./fixed-point.h"
 #endif
-#include "threads/fixed-point.h"
+
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -78,7 +77,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    static tid_t allocate_tid (void);
 
 /* BlackCats delcarations */
-   
+  
    bool list_shorter_sleep_func(const struct list_elem *a,
      const struct list_elem *b,
      void *aux UNUSED); 
@@ -483,8 +482,8 @@ void thread_calc_load_avg(void)
 
 void
 thread_calculate_recent_cpu(struct thread *t){
-  fixed_point_t recent_cpu = fix_div(fix_mult(load_avg, fix_int(2)), fix_add(fix_mult(load_avg, fix_int(2)), fix_int(1)));
-  recent_cpu = fix_mult(recent_cpu, t->recent_cpu);
+  fixed_point_t recent_cpu = fix_div(fix_mul(load_avg, fix_int(2)), fix_add(fix_mul(load_avg, fix_int(2)), fix_int(1)));
+  recent_cpu = fix_mul(recent_cpu, t->recent_cpu);
   recent_cpu = fix_add(recent_cpu, t->nice);
   t->recent_cpu = recent_cpu;
 }
@@ -495,7 +494,7 @@ thread_get_recent_cpu (void)
 {
   struct thread *cur = thread_current();
   enum intr_level old_level = intr_disable ();     
-  int recent_cpu = fix_round(fix_mult(cur->recent_cpu, fix_int(100)));
+  int recent_cpu = fix_round(fix_mul(cur->recent_cpu, fix_int(100)));
   intr_set_level(old_level);
   return recent_cpu;
 }

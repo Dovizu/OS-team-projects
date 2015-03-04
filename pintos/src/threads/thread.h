@@ -157,6 +157,7 @@ int thread_get_load_avg (void);
 /* thread sleeping */
 void thread_enforce_priority(void);
 void thread_recalculate_priority(void);
+void thread_calculate_recent_cpu(struct thread *t);
 bool list_priority_less_func (const struct list_elem *a,
      const struct list_elem *b,
      void *aux UNUSED);
