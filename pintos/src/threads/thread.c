@@ -165,23 +165,7 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
       intr_yield_on_return ();
   }
 
-/*Update priority, recent_cpu, load_avg as neccesary*/
-  void
-  advanced_thread_tick (int64_t ticks){
-    if(thread_mlfqs){
-      fixed_point_t cur_recent_cpu = thread_current()->recent_cpu;
-      thread_current()->recent_cpu = fix_add(cur_recent_cpu, fix_int(1));
 
-      if(ticks % TIMER_FREQ == 0){
-        thread_calc_load_avg();
-        thread_foreach(thread_calculate_recent_cpu, NULL);
-      }
-      if(ticks % 4 == 0){
-        thread_foreach(thread_recalculate_priority, NULL);
-        thread_enforce_priority();
-      }
-    }
-  }
 
 /* Prints thread statistics. */
   void
