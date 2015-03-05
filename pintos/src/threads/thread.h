@@ -165,5 +165,7 @@ void wake_up_threads (int64_t);
 void add_current_thread_to_sleep (void);
 void thread_update_priority(void); 
 void update_priority_with_priority(struct thread *t, int priority, int count);
+/* advanced thread scheduling */
+void advanced_thread_tick (int64_t ticks, int timer_freq);
 
 #endif /* threads/thread.h */
