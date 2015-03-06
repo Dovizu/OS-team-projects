@@ -262,8 +262,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  //list_push_back(&ready_list, &t->elem);
-  list_insert_ordered (&ready_list, &t->elem, list_priority_less_func, NULL);
+  list_push_back(&ready_list, &t->elem);
 
   t->status = THREAD_READY;
   thread_enforce_priority(); 
@@ -335,8 +334,7 @@ thread_yield (void)
   ASSERT (!intr_context ());
   old_level = intr_disable ();
   if (cur != idle_thread) {
-    //list_push_back(&ready_list, &cur->elem);
-    list_insert_ordered (&ready_list, &cur->elem, list_priority_less_func, NULL); //changed by blackcats: used to be list_push_back(&ready_list, &cur->elem);
+    list_push_back(&ready_list, &cur->elem);
   }
   cur->status = THREAD_READY;
   schedule ();
