@@ -14,6 +14,9 @@
 #include "threads/init.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <list.h>
+
+
 
 static thread_func acquire1_thread_func;
 static thread_func acquire2_thread_func;
@@ -38,6 +41,7 @@ test_priority_donate_one (void)
   msg ("This thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 2, thread_get_priority ());
   lock_release (&lock);
+  
   msg ("acquire2, acquire1 must already have finished, in that order.");
   msg ("This should be the last line before finishing this test.");
 }
