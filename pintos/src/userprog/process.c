@@ -491,7 +491,7 @@ install_page (void *upage, void *kpage, bool writable)
 static bool
 push_args_to_stack(void **esp, char *args, char *save_ptr) 
 {
-  char *addresses[500]; //addresses of the args in the stack
+  char *addresses[1000]; //addresses of the args in the stack
   int argc = 0; 
   int length; //to store length of each string in args
   
