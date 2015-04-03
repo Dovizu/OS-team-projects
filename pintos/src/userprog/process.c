@@ -19,9 +19,12 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+
+
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -42,6 +45,8 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
+  char* save_ptr;
+  file_name = strtok_r((char *)file_name, " ", &save_ptr);
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
@@ -226,6 +231,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /* BLACKCATS CHANGE FOR PARSING ARGS */
+
+  char *save_ptr;
+  file_name = strtok_r((char *)file_name, " ", &save_ptr);
+  
+  
+  
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -310,6 +322,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
 
+  if (!push_args_to_stack(esp, (char *)file_name, save_ptr)){
+    goto done;
+  }
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
@@ -467,4 +482,60 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+
+
+/* Create a minimal stack by mapping a zeroed page at the top of
+   user virtual memory. */
+static bool
+push_args_to_stack(void **esp, char *args, char *save_ptr) 
+{
+  char *addresses[1000]; //addresses of the args in the stack
+  int argc = 0; 
+  int length; //to store length of each string in args
+  
+  /* this is the first argument (filename)*/
+  length = strlen(args) + 1;
+  *esp -= length;
+  strlcpy(*esp, args, length);
+  addresses[0] = *esp;
+  /* store the actual arguments to the process*/
+  while((args = strtok_r(NULL, " ", &save_ptr)) != NULL) {
+    argc += 1;
+    length = strlen(args) + 1;
+    *esp -= length;
+    strlcpy(*esp, args, length);
+    addresses[argc] = *esp;
+  }
+  /* the word align thingy */
+  while ((int)*esp % 4 != 0) {
+    *esp -= 1;
+  }
+  
+  /* argv[argc] = 0*/
+  *esp -= sizeof(uint32_t);
+  
+  **((uint32_t **)esp) = (uint32_t) 0;
+  
+  int i;
+  for (i = argc; i >= 0; i -=1) {
+    *esp -= sizeof(uint32_t);
+    **((uint32_t **)esp) = (uint32_t) addresses[i];
+  }
+  
+  /* argv */
+  addresses[argc+1] = *esp;
+  *esp -= sizeof(uint32_t);
+  **((uint32_t **)esp) = (uint32_t) addresses[argc+1] ;
+  
+  /* argc */
+  *esp -= sizeof(uint32_t);
+  **((uint32_t **)esp) = (uint32_t) argc + 1 ;
+  
+  /* fake return address */
+  *esp -= sizeof(uint32_t);
+  **((uint32_t **)esp) = (uint32_t) 0;
+  
+  return 1;
 }

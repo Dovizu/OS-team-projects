@@ -97,11 +97,15 @@ struct thread
   	int64_t stop;						/* when the thread has to wake up.*/
 	
 	
-	/* blackcats, donation, after checkpoint 1.*/
-	struct lock *lockwait; 				/* lock the thread is waiting for.*/
-	struct list lockshold;        		/* List of lock its holding. */
-	int original_priority;				/* the original priority initiated or set. */
-	
+  	/* blackcats, donation, after checkpoint 1.*/
+  	struct lock *lockwait; 				/* lock the thread is waiting for.*/
+  	struct list lockshold;        		/* List of lock its holding. */
+  	int original_priority;				/* the original priority initiated or set. */
+
+    /* blackcats, advanced scheduler. */
+    fixed_point_t nice;
+    fixed_point_t recent_cpu;
+    
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -118,7 +122,6 @@ struct thread
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-
 void thread_init (void);
 void thread_start (void);
 
@@ -152,10 +155,17 @@ int thread_get_load_avg (void);
 
 /* blackcats header*/
 /* thread sleeping */
+void thread_enforce_priority(void);
+void thread_recalculate_priority(struct thread *t, void *aux UNUSED);
+void thread_calculate_recent_cpu(struct thread *t, void *aux UNUSED);
 bool list_priority_less_func (const struct list_elem *a,
-                             const struct list_elem *b,
-                             void *aux);
+     const struct list_elem *b,
+     void *aux UNUSED);
 void wake_up_threads (int64_t);
 void add_current_thread_to_sleep (void);
+void thread_update_priority(void); 
+void update_priority_with_priority(struct thread *t, int priority, int count);
+/* advanced thread scheduling */
+void advanced_thread_tick (int64_t ticks, int timer_freq);
 
 #endif /* threads/thread.h */
