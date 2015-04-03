@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -18,7 +19,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   uint32_t* args = ((uint32_t*) f->esp);
   switch(args[0]) {
     case SYS_HALT: {
-      ;
+      shutdown_power_off();
     }
     case SYS_EXIT: {
       f->eax = args[1];
@@ -27,6 +28,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_EXEC: {
+      f->eax=process_execute((const char*)args[1]);
       break;
     }
     case SYS_WAIT: {

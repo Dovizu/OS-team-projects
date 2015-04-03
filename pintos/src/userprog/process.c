@@ -18,13 +18,19 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
+#include "threads/malloc.h"
 
 
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
+
+struct load_args{
+  char* file_name;
+  int* load_status;
+  struct semaphore* load;
+};
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -40,16 +46,27 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
+  struct load_args *args = palloc_get_page(0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  
+  args->file_name = fn_copy;
+  struct semaphore load;
+  sema_init(&load, 0);
+  args->load = &load;
+  int status = 0;
+  args->load_status = &status;
   /* Create a new thread to execute FILE_NAME. */
   char* save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, args);
+  sema_down(&load);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  if (*(args->load_status) == -1){
+    return -1;
+  } 
   return tid;
 }
 
@@ -58,7 +75,8 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  struct load_args *args = (struct load_args*)file_name_;
+  char *file_name = args->file_name;
   struct intr_frame if_;
   bool success;
 
@@ -69,9 +87,14 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
 
+  if (!success){
+    int status = -1;
+    args->load_status = &status;
+  }
+  sema_up(args->load);
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)
     thread_exit ();
 
   /* Start the user process by simulating a return from an
