@@ -539,3 +539,21 @@ push_args_to_stack(void **esp, char *args, char *save_ptr)
   
   return 1;
 }
+
+bool
+is_vaddr_valid(void *vaddr)
+{
+  uint32_t *pd = thread_current()->pagedir;
+  void *page = pagedir_get_page(pd, vaddr);
+  return page ? true : false;
+}
+
+bool
+is_vaddr_range_valid(void *vaddr, size_t size)
+{
+  void *cursor;
+  for (cursor = vaddr; cursor <= vaddr + size; cursor += PGSIZE) {
+    if (!is_vaddr_valid(cursor)) return false;
+  } 
+  return true;
+}

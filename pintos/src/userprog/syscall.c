@@ -68,9 +68,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 }
 
-
-
-
 // typedef struct fun_desc {
   // cmd_fun_t *fun;
   // char *cmd;
