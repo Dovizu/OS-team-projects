@@ -28,9 +28,28 @@ static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
 
 struct load_args{
   char* file_name;
-  int* load_status;
+  int load_status;
   struct semaphore* load;
 };
+
+
+bool
+is_vaddr_valid(void *vaddr)
+{
+  uint32_t *pd = thread_current()->pagedir;
+  void *page = pagedir_get_page(pd, vaddr);
+  return page ? true : false;
+}
+
+bool
+is_vaddr_range_valid(void *vaddr, size_t size)
+{
+  void *cursor;
+  for (cursor = vaddr; cursor <= vaddr + size; cursor += PGSIZE) {
+    if (!is_vaddr_valid(cursor)) return false;
+  } 
+  return true;
+}
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -42,6 +61,10 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  //if(!is_vaddr_valid((void*)file_name)){
+  //  return -1;
+  //}
+  
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -55,8 +78,7 @@ process_execute (const char *file_name)
   struct semaphore load;
   sema_init(&load, 0);
   args->load = &load;
-  int status = 0;
-  args->load_status = &status;
+  args->load_status = 0;
   /* Create a new thread to execute FILE_NAME. */
   char* save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
@@ -64,7 +86,7 @@ process_execute (const char *file_name)
   sema_down(&load);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
-  if (*(args->load_status) == -1){
+  if (args->load_status == -1){
     return -1;
   } 
   return tid;
@@ -88,8 +110,7 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
 
   if (!success){
-    int status = -1;
-    args->load_status = &status;
+    args->load_status = -1;
   }
   sema_up(args->load);
   /* If load failed, quit. */
@@ -563,21 +584,3 @@ push_args_to_stack(void **esp, char *args, char *save_ptr)
   return 1;
 }
 
-
-bool
-is_vaddr_valid(void *vaddr)
-{
-  uint32_t *pd = thread_current()->pagedir;
-  void *page = pagedir_get_page(pd, vaddr);
-  return page ? true : false;
-}
-
-bool
-is_vaddr_range_valid(void *vaddr, size_t size)
-{
-  void *cursor;
-  for (cursor = vaddr; cursor <= vaddr + size; cursor += PGSIZE) {
-    if (!is_vaddr_valid(cursor)) return false;
-  } 
-  return true;
-}
