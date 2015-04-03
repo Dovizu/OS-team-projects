@@ -28,7 +28,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_EXEC: {
-      f->eax=process_execute((const char*)args[1]);
+      if(is_vaddr_valid((void*)args[1])){
+        f->eax=process_execute((const char*)args[1]);
+      }
       break;
     }
     case SYS_WAIT: {
