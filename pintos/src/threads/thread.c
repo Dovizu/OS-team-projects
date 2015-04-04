@@ -77,7 +77,6 @@ void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
 /* BlackCats delcarations */
-
 bool list_shorter_sleep_func(const struct list_elem *a,
  const struct list_elem *b,
  void *aux UNUSED); 
@@ -208,6 +207,20 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  #ifdef USERPROG
+  t->wait_status =  malloc(SIZE_OF_WAIT_STATUS_T);
+ // // t->wait_status =  palloc_get_page (PAL_ZERO);
+  // if (t->wait_status == NULL) 
+    // return TID_ERROR;
+  t->wait_status->pid = tid;
+  t->wait_status->waited = false;
+  t->wait_status->ref_cnt = 2;
+  lock_init(&t->wait_status->ref_cnt_lock);
+  sema_init(&t->wait_status->waiting, 0);
+  //list_init(&t->child_statuses);
+
+  #endif 
+  
 /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -587,6 +600,7 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (name != NULL);
 
   memset (t, 0, sizeof *t);
+
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
@@ -608,8 +622,9 @@ init_thread (struct thread *t, const char *name, int priority)
   t->lockwait = NULL;
   list_init (&t->lockshold);
   
-  
   t->magic = THREAD_MAGIC;
+
+  list_init(&t->child_statuses);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -822,4 +837,17 @@ advanced_thread_tick (int64_t ticks, int timer_freq)
       thread_enforce_priority();
     }
   }
+}
+
+struct thread *
+thread_find_by_tid(tid_t tid) 
+{
+  struct list_elem *elem;
+  for(elem = list_begin(&all_list); elem != list_end(&all_list); elem = list_next(elem)){
+      struct thread *t = list_entry(elem, struct thread, allelem);
+    if (t->tid == tid) {
+      return t;
+    }
+  }
+  return NULL;
 }

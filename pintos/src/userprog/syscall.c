@@ -24,6 +24,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT: {
       f->eax = args[1];
       printf("%s: exit\(%d\)\n", thread_current()->name, args[1]);
+      thread_current()->wait_status->exit_status = args[1];      
       thread_exit();
       break;
     }
@@ -34,6 +35,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_WAIT: {
+      process_wait((tid_t)args[1]);
       break;
     }
     case SYS_CREATE: {

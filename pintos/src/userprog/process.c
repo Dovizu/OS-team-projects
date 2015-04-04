@@ -26,10 +26,12 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
 
+wait_status_t* find_child_status(tid_t pid, struct thread *t);
+
 struct load_args{
   char* file_name;
   int load_status;
-  struct semaphore* load;
+  struct semaphore load;
 };
 
 
@@ -51,6 +53,7 @@ is_vaddr_range_valid(void *vaddr, size_t size)
   return true;
 }
 
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -60,10 +63,6 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
-  //if(!is_vaddr_valid((void*)file_name)){
-  //  return -1;
-  //}
   
   sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
@@ -75,20 +74,26 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   
   args->file_name = fn_copy;
-  struct semaphore load;
-  sema_init(&load, 0);
-  args->load = &load;
+
+  sema_init(&args->load, 0);
   args->load_status = 0;
+  
   /* Create a new thread to execute FILE_NAME. */
   char* save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
   tid = thread_create (file_name, PRI_DEFAULT, start_process, args);
-  sema_down(&load);
+  sema_down(&args->load);
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  
   if (args->load_status == -1){
     return -1;
   } 
+  struct thread * t = thread_find_by_tid(tid);
+  if (t != NULL) {
+    list_push_back(&thread_current()->child_statuses, &t->wait_status->wait_elem);
+  }
   return tid;
 }
 
@@ -112,7 +117,7 @@ start_process (void *file_name_)
   if (!success){
     args->load_status = -1;
   }
-  sema_up(args->load);
+  sema_up(&args->load);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
@@ -128,6 +133,20 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
+wait_status_t*
+find_child_status(tid_t pid, struct thread *t){
+    struct list_elem *elem;
+    for(elem = list_begin(&t->child_statuses); elem != list_end(&t->child_statuses); elem = list_next(elem)){
+      wait_status_t *ws = list_entry(elem, wait_status_t, wait_elem);
+		  if (ws->pid == pid) {
+        //("found pid");
+			  return ws;
+		  }
+	  }
+    return NULL;
+}
+
+
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -138,10 +157,25 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
-  sema_down (&temporary);
-  return 0;
+  struct thread *cur = thread_current();
+  wait_status_t *child_stat = find_child_status(child_tid, cur);
+  if(child_stat == NULL || child_stat->waited){
+    return -1;
+  }
+  //lock_acquire(&child_stat->ref_cnt_lock);
+  if(child_stat->ref_cnt == 2){
+   child_stat->waited = 1;
+   sema_down(&child_stat->waiting);
+   child_stat->waited = 0;
+  }
+  //lock_release(&child_stat->ref_cnt_lock);
+  int exit_status = child_stat->exit_status;
+  list_remove(&child_stat->wait_elem);
+  free(child_stat);
+  //palloc_free_page (child_stat);
+  return exit_status;
 }
 
 /* Free the current process's resources. */
@@ -167,7 +201,31 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
+  //sema_up (&temporary);
+  int exit = cur->wait_status->exit_status;
+  lock_acquire(&cur->wait_status->ref_cnt_lock);
+  cur->wait_status->ref_cnt -= 1;
+  lock_release(&cur->wait_status->ref_cnt_lock);
+  struct list_elem *elem;
+  for(elem = list_begin(&cur->child_statuses); elem != list_end(&cur->child_statuses); elem = list_next(elem)){
+    wait_status_t *stat = list_entry(elem, wait_status_t, wait_elem);
+    lock_acquire(&stat->ref_cnt_lock);
+    stat->ref_cnt -= 1;
+    if(stat->ref_cnt == 0){
+      lock_release(&stat->ref_cnt_lock);
+      free(stat);
+      //palloc_free_page (stat);
+    } else{
+      lock_release(&stat->ref_cnt_lock);
+    }
+  }    
+  if(cur->wait_status->ref_cnt == 0){
+    free(cur->wait_status);
+    //palloc_free_page (cur->wait_status);
+  } else { 
+    sema_up(&cur->wait_status->waiting);
+  }
+  // palloc_free_page(cur);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -583,4 +641,3 @@ push_args_to_stack(void **esp, char *args, char *save_ptr)
   
   return 1;
 }
-
