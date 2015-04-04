@@ -4,6 +4,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "userprog/process.h"
+#include "userprog/pagedir.h"
+#include "threads/vaddr.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -13,10 +15,25 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+/* Used to clean up the code in syscall_handler */
+void
+exit_if_invalid (void *ptr, struct intr_frame *f) 
+{
+  int pointer_is_valid = ptr && is_user_vaddr(ptr) && pagedir_get_page(thread_current()->pagedir, ptr);
+  if (!pointer_is_valid) {
+    f->eax = -1;
+    thread_current ()->wait_status->exit_status = -1;
+    printf ("%s: exit(%d)\n", thread_current ()->name, -1);
+    thread_exit ();
+  }
+}
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   uint32_t* args = ((uint32_t*) f->esp);
+  exit_if_invalid(args, f);
+  
   switch(args[0]) {
     case SYS_HALT: {
       shutdown_power_off();
