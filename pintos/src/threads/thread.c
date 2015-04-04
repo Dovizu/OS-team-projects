@@ -209,16 +209,11 @@ thread_create (const char *name, int priority,
 
   #ifdef USERPROG
   t->wait_status =  malloc(SIZE_OF_WAIT_STATUS_T);
- // // t->wait_status =  palloc_get_page (PAL_ZERO);
-  // if (t->wait_status == NULL) 
-    // return TID_ERROR;
   t->wait_status->pid = tid;
   t->wait_status->waited = false;
   t->wait_status->ref_cnt = 2;
   lock_init(&t->wait_status->ref_cnt_lock);
   sema_init(&t->wait_status->waiting, 0);
-  //list_init(&t->child_statuses);
-
   #endif 
   
 /* Stack frame for kernel_thread(). */

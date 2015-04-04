@@ -82,17 +82,25 @@ process_execute (const char *file_name)
   char* save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
   tid = thread_create (file_name, PRI_DEFAULT, start_process, args);
+  struct thread *t = thread_find_by_tid(tid);
+  wait_status_t *child_stat = NULL;
+  if (t != NULL) {
+    child_stat = t->wait_status;
+  }
   sema_down(&args->load);
   
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
+    return tid;
+  }
   
   if (args->load_status == -1){
+    struct thread * t = thread_find_by_tid(tid);
     return -1;
   } 
-  struct thread * t = thread_find_by_tid(tid);
-  if (t != NULL) {
-    list_push_back(&thread_current()->child_statuses, &t->wait_status->wait_elem);
+  if (child_stat != NULL) {
+    
+    list_push_back(&thread_current()->child_statuses, &child_stat->wait_elem);
   }
   return tid;
 }
@@ -139,7 +147,6 @@ find_child_status(tid_t pid, struct thread *t){
     for(elem = list_begin(&t->child_statuses); elem != list_end(&t->child_statuses); elem = list_next(elem)){
       wait_status_t *ws = list_entry(elem, wait_status_t, wait_elem);
 		  if (ws->pid == pid) {
-        //("found pid");
 			  return ws;
 		  }
 	  }
@@ -165,16 +172,15 @@ process_wait (tid_t child_tid)
     return -1;
   }
   //lock_acquire(&child_stat->ref_cnt_lock);
-  if(child_stat->ref_cnt == 2){
-   child_stat->waited = 1;
-   sema_down(&child_stat->waiting);
-   child_stat->waited = 0;
-  }
-  //lock_release(&child_stat->ref_cnt_lock);
+  //if(child_stat->ref_cnt == 2){ like roger said we don't need this because if we sema down
+  //when the child died already we still not gonna wait
+  child_stat->waited = 1;
+  sema_down(&child_stat->waiting);
+  //}
+ 
   int exit_status = child_stat->exit_status;
   list_remove(&child_stat->wait_elem);
   free(child_stat);
-  //palloc_free_page (child_stat);
   return exit_status;
 }
 
@@ -201,7 +207,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  //sema_up (&temporary);
   int exit = cur->wait_status->exit_status;
   lock_acquire(&cur->wait_status->ref_cnt_lock);
   cur->wait_status->ref_cnt -= 1;
