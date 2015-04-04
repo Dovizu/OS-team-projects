@@ -26,6 +26,19 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+
+typedef struct{
+    tid_t pid;
+    bool waited;
+    struct semaphore waiting;
+    int exit_status;
+    struct lock ref_cnt_lock;
+    int ref_cnt;
+    struct list_elem wait_elem;
+} wait_status_t;
+
+
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -112,11 +125,15 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct list child_statuses;
+    wait_status_t *wait_status;
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+#define SIZE_OF_WAIT_STATUS_T sizeof(wait_status_t)
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -168,4 +185,5 @@ void update_priority_with_priority(struct thread *t, int priority, int count);
 /* advanced thread scheduling */
 void advanced_thread_tick (int64_t ticks, int timer_freq);
 
+struct thread * thread_find_by_tid(tid_t tid);
 #endif /* threads/thread.h */
