@@ -26,8 +26,6 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
 
-wait_status_t* find_child_status(tid_t pid, struct thread *t);
-
 struct load_args{
   char* file_name;
   int load_status;
@@ -95,11 +93,10 @@ process_execute (const char *file_name)
   }
   
   if (args->load_status == -1){
-    struct thread * t = thread_find_by_tid(tid);
+    //struct thread * t = thread_find_by_tid(tid);
     return -1;
   } 
   if (child_stat != NULL) {
-    
     list_push_back(&thread_current()->child_statuses, &child_stat->wait_elem);
   }
   return tid;
@@ -141,19 +138,6 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
-wait_status_t*
-find_child_status(tid_t pid, struct thread *t){
-    struct list_elem *elem;
-    for(elem = list_begin(&t->child_statuses); elem != list_end(&t->child_statuses); elem = list_next(elem)){
-      wait_status_t *ws = list_entry(elem, wait_status_t, wait_elem);
-		  if (ws->pid == pid) {
-			  return ws;
-		  }
-	  }
-    return NULL;
-}
-
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -171,13 +155,8 @@ process_wait (tid_t child_tid)
   if(child_stat == NULL || child_stat->waited){
     return -1;
   }
-  //lock_acquire(&child_stat->ref_cnt_lock);
-  //if(child_stat->ref_cnt == 2){ like roger said we don't need this because if we sema down
-  //when the child died already we still not gonna wait
   child_stat->waited = 1;
   sema_down(&child_stat->waiting);
-  //}
- 
   int exit_status = child_stat->exit_status;
   list_remove(&child_stat->wait_elem);
   free(child_stat);
@@ -207,6 +186,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  
   int exit = cur->wait_status->exit_status;
   lock_acquire(&cur->wait_status->ref_cnt_lock);
   cur->wait_status->ref_cnt -= 1;
@@ -219,18 +199,15 @@ process_exit (void)
     if(stat->ref_cnt == 0){
       lock_release(&stat->ref_cnt_lock);
       free(stat);
-      //palloc_free_page (stat);
     } else{
       lock_release(&stat->ref_cnt_lock);
     }
   }    
   if(cur->wait_status->ref_cnt == 0){
     free(cur->wait_status);
-    //palloc_free_page (cur->wait_status);
   } else { 
     sema_up(&cur->wait_status->waiting);
   }
-  // palloc_free_page(cur);
 }
 
 /* Sets up the CPU for running user code in the current

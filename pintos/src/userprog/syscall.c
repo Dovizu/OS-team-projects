@@ -51,7 +51,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     }
-    case SYS_WAIT: {
+    case SYS_WAIT: {    
       f->eax = process_wait((tid_t)args[1]);
       break;
     }

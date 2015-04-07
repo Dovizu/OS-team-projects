@@ -26,7 +26,6 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-
 typedef struct{
     tid_t pid;
     bool waited;
@@ -36,8 +35,6 @@ typedef struct{
     int ref_cnt;
     struct list_elem wait_elem;
 } wait_status_t;
-
-
 
 /* A kernel thread or user process.
 
@@ -133,8 +130,6 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-#define SIZE_OF_WAIT_STATUS_T sizeof(wait_status_t)
-
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
@@ -185,5 +180,7 @@ void update_priority_with_priority(struct thread *t, int priority, int count);
 /* advanced thread scheduling */
 void advanced_thread_tick (int64_t ticks, int timer_freq);
 
+#define SIZE_OF_WAIT_STATUS_T sizeof(wait_status_t)
 struct thread * thread_find_by_tid(tid_t tid);
+wait_status_t* find_child_status(tid_t pid, struct thread *t);
 #endif /* threads/thread.h */

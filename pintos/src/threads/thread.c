@@ -86,6 +86,7 @@ bool list_priority_more_func (const struct list_elem *a,
  void *aux UNUSED);
 
 void add_current_thread_to_sleep(void);
+void init_wait_status_for_thread(struct thread *t);
 
 static fixed_point_t load_avg;
 void thread_calc_load_avg(void);
@@ -208,12 +209,7 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
 
   #ifdef USERPROG
-  t->wait_status =  malloc(SIZE_OF_WAIT_STATUS_T);
-  t->wait_status->pid = tid;
-  t->wait_status->waited = false;
-  t->wait_status->ref_cnt = 2;
-  lock_init(&t->wait_status->ref_cnt_lock);
-  sema_init(&t->wait_status->waiting, 0);
+  init_wait_status_for_thread(t);
   #endif 
   
 /* Stack frame for kernel_thread(). */
@@ -839,10 +835,34 @@ thread_find_by_tid(tid_t tid)
 {
   struct list_elem *elem;
   for(elem = list_begin(&all_list); elem != list_end(&all_list); elem = list_next(elem)){
-      struct thread *t = list_entry(elem, struct thread, allelem);
+    struct thread *t = list_entry(elem, struct thread, allelem);
     if (t->tid == tid) {
       return t;
     }
   }
   return NULL;
 }
+
+void
+init_wait_status_for_thread(struct thread *t)
+{
+  t->wait_status =  malloc(SIZE_OF_WAIT_STATUS_T);
+  t->wait_status->pid = t->tid;
+  t->wait_status->waited = false;
+  t->wait_status->ref_cnt = 2;
+  lock_init(&t->wait_status->ref_cnt_lock);
+  sema_init(&t->wait_status->waiting, 0);
+}
+
+wait_status_t*
+find_child_status(tid_t pid, struct thread *t){
+  struct list_elem *elem;
+  for(elem = list_begin(&t->child_statuses); elem != list_end(&t->child_statuses); elem = list_next(elem)){
+    wait_status_t *ws = list_entry(elem, wait_status_t, wait_elem);
+      if (ws->pid == pid) {
+        return ws;
+      }
+	}
+  return NULL;
+}
+
