@@ -28,6 +28,7 @@ exit_if_invalid (void *ptr, struct intr_frame *f)
   }
 }
 
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
