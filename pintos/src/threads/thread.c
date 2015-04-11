@@ -615,11 +615,9 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /*pa2 final checkpoint*/
   /* Initializing thread's file descriptors list */
-  /*
   list_init(&(t->file_descriptions));
   t->next_fd_num = 2;
-  lock_init(t->fd_num_lock);
-  */
+  lock_init(&(t->fd_num_lock));
   /*
   struct file_description *standardIn;
   standardIn->fd = 0;
