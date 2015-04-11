@@ -49,8 +49,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC: {
       char * file_name = (const char*)get_arg(f, args, 1);
+      exit_if_invalid (file_name, f);
       if(is_vaddr_valid(file_name)){
         f->eax=process_execute(file_name);
+      } else {
+        f->eax = -1;
       }
       break;
     }
@@ -61,21 +64,28 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_CREATE: {
       char * file = (const char *) get_arg(f, args, 1);
-      if (file == NULL) {
-        f->eax = -1;
-      } else {
-        off_t initial_size = (off_t) get_arg(f, args, 2);
+      off_t initial_size = (off_t) get_arg(f, args, 2);
+      exit_if_invalid (file, f);
+      if(file && is_vaddr_valid(file)){
         f->eax = filesys_create(file,initial_size);
+      } else {
+        f->eax = -1;
       }
       break;
     }
     case SYS_REMOVE: {
       char * file = (const char *) get_arg(f, args, 1);
-      f->eax = filesys_remove(file);
+      exit_if_invalid (file, f);
+      if(file && is_vaddr_valid(file)){
+        f->eax = filesys_remove(file);
+      } else {
+        f->eax = -1;
+      }
       break;
     }
     case SYS_OPEN: {
       const char * file = (const char *) get_arg(f, args, 1);
+      exit_if_invalid (file, f);
       struct thread *cur_thread = thread_current();
       struct file_description *newFD = malloc(sizeof(struct file_description));
       lock_acquire(&(cur_thread->fd_num_lock));
@@ -95,19 +105,30 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_FILESIZE: {
       int fd = (int) get_arg(f, args, 1);
       struct file *file = get_file_struct(fd);
-      f->eax = file_length(file);
-      
+      if (file) {
+        f->eax = file_length(file);
+      } else {
+        exit_handler(f,-1);
+        f->eax = -1;
+      }
       break;
     }
     case SYS_READ: {
       int fd = (int) get_arg(f, args, 1);
-      void * buffer = (void *) get_arg(f, args, 2);
+      char * buffer = (char*) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
+      exit_if_invalid (buffer, f);
       if (fd == 0) {
-        f->eax = input_getc((char*) buffer, (int) size);
+        int read = 0;
+        while (read <= size) {
+          buffer[read] = input_getc((char*) buffer, (int) size);
+        }
+        f->eax = size;
       } else {
         struct file *file = get_file_struct(fd);
-        f->eax = file_read(file, buffer, size); 
+        if (file) {
+          f->eax = file_read(file, buffer, size); 
+        }
       }
       break;
     }
@@ -120,7 +141,9 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = size;
       } else {
         struct file *file = get_file_struct(fd);
-        f->eax = file_write (file, buffer, size) ;
+        if (file) {
+          f->eax = file_write (file, buffer, size) ;
+        }
       }
       break;
     }
