@@ -126,7 +126,7 @@ struct thread
     /*pa2 ch2*/
     struct list file_descriptions;
     int next_fd_num;
-    struct lock *fd_num_lock;
+    struct lock fd_num_lock;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
