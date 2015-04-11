@@ -25,7 +25,7 @@ syscall_init (void)
 void
 exit_if_invalid (void *ptr, struct intr_frame *f) 
 {
-  int pointer_is_valid = ptr && is_user_vaddr(ptr) && pagedir_get_page(thread_current()->pagedir, ptr);
+  int pointer_is_valid = ptr && is_user_vaddr(ptr) && pagedir_get_page(thread_current()->pagedir, ptr) && is_vaddr_valid(ptr);
   if (!pointer_is_valid) {
     exit_handler(f, -1);
   }
@@ -116,7 +116,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       void * buffer = (void *) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
       if (fd == 1) {
-        f->eax = putbuf((char*) buffer, (int) size);
+        putbuf((char*) buffer, (int) size);
+        f->eax = size;
       } else {
         struct file *file = get_file_struct(fd);
         f->eax = file_write (file, buffer, size) ;
