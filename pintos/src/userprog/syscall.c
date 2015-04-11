@@ -6,6 +6,7 @@
 #include "userprog/process.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -57,12 +58,30 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_CREATE: {
+      f->eax = filesys_create((const char *)args[1],(off_t) args[2]);
       break;
     }
     case SYS_REMOVE: {
+      f->eax = filesys_remove((const char*)args[1]);
       break;
     }
     case SYS_OPEN: {
+      /*
+      struct thread *cur_thread = thread_current();
+      struct file_description *newFD = malloc(sizeof(struct file_description));
+      lock_acquire(cur_thread->fd_num_lock);
+      newFD->fd = cur_thread->next_fd_num;
+      cur_thread->next_fd_num = cur_thread->next_fd_num +1;
+      lock_release(cur_thread->fd_num_lock);
+      struct file * newFile = filesys_open((const char *)args[1]);
+      if(f==NULL){
+        f->eax = -1;
+      } else {
+        newFD->f = newFile;
+        list_push_front(&(cur_thread->file_descriptions), &(newFD->fd_list_elem));
+        f->eax = newFD->fd;
+      }
+      */
       break;
     }
     case SYS_FILESIZE: {

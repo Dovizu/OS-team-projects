@@ -36,6 +36,12 @@ typedef struct{
     struct list_elem wait_elem;
 } wait_status_t;
 
+struct file_description{
+    int fd;
+    struct file *f;
+    struct list_elem fd_list_elem;
+};
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -116,6 +122,11 @@ struct thread
     fixed_point_t nice;
     fixed_point_t recent_cpu;
     
+    /*pa2 ch2*/
+    struct list file_descriptions;
+    int next_fd_num;
+    struct lock *fd_num_lock;
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
