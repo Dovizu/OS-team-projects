@@ -93,7 +93,6 @@ process_execute (const char *file_name)
   }
   
   if (args->load_status == -1){
-    //struct thread * t = thread_find_by_tid(tid);
     return -1;
   } 
   if (child_stat != NULL) {
