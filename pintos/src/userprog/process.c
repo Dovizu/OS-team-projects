@@ -328,6 +328,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  
+  file_deny_write(file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -574,7 +576,7 @@ install_page (void *upage, void *kpage, bool writable)
 static bool
 push_args_to_stack(void **esp, char *args, char *save_ptr) 
 {
-  char *addresses[1000]; //addresses of the args in the stack
+  char **addresses = palloc_get_page(0); //addresses of the args in the stack
   int argc = 0; 
   int length; //to store length of each string in args
   

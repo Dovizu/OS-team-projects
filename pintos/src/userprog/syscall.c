@@ -13,7 +13,8 @@ static void syscall_handler (struct intr_frame *);
 uint32_t get_arg (struct intr_frame *f, uint32_t* args, int index);
 void exit_handler(struct intr_frame *f, uint32_t exit_code);
 struct file * get_file_struct(int fd);
- 
+struct file_description * find_fd_struct(int fd);
+
 void
 syscall_init (void) 
 {
@@ -49,8 +50,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC: {
       char * file_name = (const char*)get_arg(f, args, 1);
+      exit_if_invalid (file_name, f);
       if(is_vaddr_valid(file_name)){
         f->eax=process_execute(file_name);
+      } else {
+        f->eax = -1;
       }
       break;
     }
@@ -61,28 +65,42 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_CREATE: {
       char * file = (const char *) get_arg(f, args, 1);
-      if (file == NULL) {
-        f->eax = -1;
-      } else {
-        off_t initial_size = (off_t) get_arg(f, args, 2);
+      off_t initial_size = (off_t) get_arg(f, args, 2);
+      exit_if_invalid (file, f);
+      if(file && is_vaddr_valid(file)){
+        lock_acquire(&filesys_lock);
         f->eax = filesys_create(file,initial_size);
+        lock_release(&filesys_lock);        
+      } else {
+        f->eax = -1;
       }
       break;
     }
     case SYS_REMOVE: {
       char * file = (const char *) get_arg(f, args, 1);
-      f->eax = filesys_remove(file);
+      exit_if_invalid (file, f);
+      if(file && is_vaddr_valid(file)){
+        lock_acquire(&filesys_lock);          
+        f->eax = filesys_remove(file);
+        lock_release(&filesys_lock);        
+      } else {
+        f->eax = -1;
+      }
       break;
     }
     case SYS_OPEN: {
       const char * file = (const char *) get_arg(f, args, 1);
+      exit_if_invalid (file, f);
       struct thread *cur_thread = thread_current();
       struct file_description *newFD = malloc(sizeof(struct file_description));
       lock_acquire(&(cur_thread->fd_num_lock));
       newFD->fd = cur_thread->next_fd_num;
+      newFD->position = 0;
       cur_thread->next_fd_num = cur_thread->next_fd_num +1;
       lock_release(&cur_thread->fd_num_lock);
+      lock_acquire(&filesys_lock);      
       struct file * newFile = filesys_open(file);
+      lock_release(&filesys_lock);      
       if(newFile==NULL){
         f->eax = -1;
       } else {
@@ -95,18 +113,35 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_FILESIZE: {
       int fd = (int) get_arg(f, args, 1);
       struct file *file = get_file_struct(fd);
-      f->eax = file_length(file);
+      //f->eax = file_length(file);
+      if (file) {
+        lock_acquire(&filesys_lock);        
+        f->eax = file_length(file);
+        lock_release(&filesys_lock);        
+      } else {
+        exit_handler(f,-1);
+        f->eax = -1;
+      }
       break;
     }
     case SYS_READ: {
       int fd = (int) get_arg(f, args, 1);
-      void * buffer = (void *) get_arg(f, args, 2);
+      char * buffer = (char*) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
+      exit_if_invalid (buffer, f);
       if (fd == 0) {
-        f->eax = input_getc((char*) buffer, (int) size);
+        int read = 0;
+        while (read <= size) {
+          buffer[read] = input_getc((char*) buffer, (int) size);
+        }
+        f->eax = size;
       } else {
         struct file *file = get_file_struct(fd);
-        f->eax = file_read(file, buffer, size); 
+        if (file) {
+          lock_acquire(&filesys_lock);          
+          f->eax = file_read(file, buffer, size); 
+          lock_release(&filesys_lock);           
+        }
       }
       break;
     }
@@ -114,12 +149,17 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd = (int) get_arg(f, args, 1);
       void * buffer = (void *) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
+      exit_if_invalid (buffer, f);
       if (fd == 1) {
         putbuf((char*) buffer, (int) size);
         f->eax = size;
       } else {
         struct file *file = get_file_struct(fd);
-        f->eax = file_write (file, buffer, size) ;
+        if (file) {
+          lock_acquire(&filesys_lock);          
+          f->eax = file_write (file, buffer, size) ;
+          lock_release(&filesys_lock);          
+        }
       }
       break;
     }
@@ -128,17 +168,41 @@ syscall_handler (struct intr_frame *f UNUSED)
       off_t position = (off_t) get_arg(f, args, 2);
       struct file *file = get_file_struct(fd);
       file_seek(file, position);
+      /*
+      unsigned position = (unsigned) get_arg(f, args, 2);
+      unsigned file_size = 0;
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }     
+      if(fd_elem->f){
+          file_size = file_length(fd_elem->f);
+      }
+      if(position > file_size){
+        position = file_size;
+      }
+      fd_elem->position = position;
+      */
       break;
     }
     case SYS_TELL: {
       int fd = (int) get_arg(f, args, 1);
       struct file *file = get_file_struct(fd);
       f->eax = file_tell(file);
-      break;
+      /*
+      int fd = (int) get_arg(f, args, 1);
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }       
+      f->eax = fd_elem->position;
+      */
     }
     case SYS_CLOSE: {
       int fd = (int) get_arg(f, args, 1);
-      struct file *file = get_file_struct(fd);
+      //struct file *file = get_file_struct(fd);
       /*
       struct file_description *file_descript = get_file_description(fd);
       if(file != NULL){
@@ -146,6 +210,16 @@ syscall_handler (struct intr_frame *f UNUSED)
         file_close(file); 
       }
       */
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }       
+      lock_acquire(&filesys_lock);
+      file_close(fd_elem->f);
+      list_remove(&fd_elem->fd_list_elem);
+      free(fd_elem);
+      lock_release(&filesys_lock);
       break;
     }
     case SYS_NULL: {
@@ -213,5 +287,18 @@ exit_handler(struct intr_frame *f, uint32_t exit_code) {
   thread_current ()->wait_status->exit_status = exit_code;
   printf ("%s: exit(%d)\n", thread_current ()->name, exit_code);
   thread_exit ();
+}
+
+struct file_description *
+find_fd_struct(int fd){
+  struct list_elem *elem;
+  struct thread *t = thread_current();
+  for(elem = list_begin(&t->file_descriptions); elem != list_end(&t->file_descriptions); elem = list_next(elem)){
+    struct file_description *fd_elem = list_entry(elem, struct file_description, fd_list_elem);
+    if(fd_elem->fd == fd){
+      return fd_elem;
+    }
+  }
+  return NULL;
 }
 

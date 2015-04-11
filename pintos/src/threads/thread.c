@@ -111,6 +111,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  lock_init (&filesys_lock);  
   
 /* blackcats initiate sleeping list and initialize load average. */
   list_init(&sleeping_thread);
