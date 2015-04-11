@@ -40,8 +40,9 @@ struct file_description{
     int fd;
     struct file *f;
     struct list_elem fd_list_elem;
+    unsigned position;
 };
-
+struct lock filesys_lock;
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The

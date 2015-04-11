@@ -13,7 +13,8 @@ static void syscall_handler (struct intr_frame *);
 uint32_t get_arg (struct intr_frame *f, uint32_t* args, int index);
 void exit_handler(struct intr_frame *f, uint32_t exit_code);
 struct file * get_file_struct(int fd);
- 
+struct file_description * find_fd_struct(int fd);
+
 void
 syscall_init (void) 
 {
@@ -67,7 +68,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       off_t initial_size = (off_t) get_arg(f, args, 2);
       exit_if_invalid (file, f);
       if(file && is_vaddr_valid(file)){
+        lock_acquire(&filesys_lock);
         f->eax = filesys_create(file,initial_size);
+        lock_release(&filesys_lock);        
       } else {
         f->eax = -1;
       }
@@ -77,7 +80,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       char * file = (const char *) get_arg(f, args, 1);
       exit_if_invalid (file, f);
       if(file && is_vaddr_valid(file)){
+        lock_acquire(&filesys_lock);          
         f->eax = filesys_remove(file);
+        lock_release(&filesys_lock);        
       } else {
         f->eax = -1;
       }
@@ -90,9 +95,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       struct file_description *newFD = malloc(sizeof(struct file_description));
       lock_acquire(&(cur_thread->fd_num_lock));
       newFD->fd = cur_thread->next_fd_num;
+      newFD->position = 0;
       cur_thread->next_fd_num = cur_thread->next_fd_num +1;
       lock_release(&cur_thread->fd_num_lock);
+      lock_acquire(&filesys_lock);      
       struct file * newFile = filesys_open(file);
+      lock_release(&filesys_lock);      
       if(newFile==NULL){
         f->eax = -1;
       } else {
@@ -106,7 +114,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd = (int) get_arg(f, args, 1);
       struct file *file = get_file_struct(fd);
       if (file) {
+        lock_acquire(&filesys_lock);        
         f->eax = file_length(file);
+        lock_release(&filesys_lock);        
       } else {
         exit_handler(f,-1);
         f->eax = -1;
@@ -127,7 +137,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       } else {
         struct file *file = get_file_struct(fd);
         if (file) {
+          lock_acquire(&filesys_lock);          
           f->eax = file_read(file, buffer, size); 
+          lock_release(&filesys_lock);           
         }
       }
       break;
@@ -143,18 +155,52 @@ syscall_handler (struct intr_frame *f UNUSED)
       } else {
         struct file *file = get_file_struct(fd);
         if (file) {
+          lock_acquire(&filesys_lock);          
           f->eax = file_write (file, buffer, size) ;
+          lock_release(&filesys_lock);          
         }
       }
       break;
     }
     case SYS_SEEK: {
-      break;
+      int fd = (int) get_arg(f, args, 1);
+      unsigned position = (unsigned) get_arg(f, args, 2);
+      unsigned file_size = 0;
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }     
+      if(fd_elem->f){
+          file_size = file_length(fd_elem->f);
+      }
+      if(position > file_size){
+        position = file_size;
+      }
+      fd_elem->position = position;
     }
     case SYS_TELL: {
+      int fd = (int) get_arg(f, args, 1);
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }       
+      f->eax = fd_elem->position;
       break;
     }
     case SYS_CLOSE: {
+      int fd = (int) get_arg(f, args, 1);
+      struct file_description *fd_elem = find_fd_struct(fd);
+      if(!fd_elem){
+        exit_handler(f, -1);
+        f->eax = -1;
+      }       
+      lock_acquire(&filesys_lock);
+      file_close(fd_elem->f);
+      list_remove(&fd_elem->fd_list_elem);
+      free(fd_elem);
+      lock_release(&filesys_lock);
       break;
     }
     case SYS_NULL: {
@@ -197,5 +243,18 @@ exit_handler(struct intr_frame *f, uint32_t exit_code) {
   thread_current ()->wait_status->exit_status = exit_code;
   printf ("%s: exit(%d)\n", thread_current ()->name, exit_code);
   thread_exit ();
+}
+
+struct file_description *
+find_fd_struct(int fd){
+  struct list_elem *elem;
+  struct thread *t = thread_current();
+  for(elem = list_begin(&t->file_descriptions); elem != list_end(&t->file_descriptions); elem = list_next(elem)){
+    struct file_description *fd_elem = list_entry(elem, struct file_description, fd_list_elem);
+    if(fd_elem->fd == fd){
+      return fd_elem;
+    }
+  }
+  return NULL;
 }
 
