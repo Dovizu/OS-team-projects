@@ -53,7 +53,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       exit_if_invalid (file_name, f);
       if(is_vaddr_valid(file_name)){
         lock_acquire(&filesys_lock); 
-        f->eax=process_execute(file_name);
+        
+        char * fn_copy = palloc_get_page (0);
+        strlcpy (fn_copy, file_name, PGSIZE);
+        f->eax=process_execute(fn_copy);
+
         lock_release(&filesys_lock); 
       } else {
         exit_handler(f, -1);
