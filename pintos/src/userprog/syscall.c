@@ -136,6 +136,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd = (int) get_arg(f, args, 1);
       void * buffer = (void *) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
+      exit_if_invalid (buffer, f);
       if (fd == 1) {
         putbuf((char*) buffer, (int) size);
         f->eax = size;
