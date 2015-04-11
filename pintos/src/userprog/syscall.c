@@ -96,7 +96,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       int fd = (int) get_arg(f, args, 1);
       struct file *file = get_file_struct(fd);
       f->eax = file_length(file);
-      
       break;
     }
     case SYS_READ: {
@@ -125,12 +124,28 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_SEEK: {
+      int fd = (int) get_arg(f, args, 1);
+      off_t position = (off_t) get_arg(f, args, 2);
+      struct file *file = get_file_struct(fd);
+      file_seek(file, position);
       break;
     }
     case SYS_TELL: {
+      int fd = (int) get_arg(f, args, 1);
+      struct file *file = get_file_struct(fd);
+      f->eax = file_tell(file);
       break;
     }
     case SYS_CLOSE: {
+      int fd = (int) get_arg(f, args, 1);
+      struct file *file = get_file_struct(fd);
+      /*
+      struct file_description *file_descript = get_file_description(fd);
+      if(file != NULL){
+        list_remove(&(file_descript->fd_list_elem));
+        file_close(file); 
+      }
+      */
       break;
     }
     case SYS_NULL: {
@@ -165,10 +180,35 @@ get_file_struct(int fd) {
     }
 	}
   return NULL;
+  
+  //If using get_file_description
+  /*
+  struct file_description * file_descript = get_file_description(fd);
+  if(file_descript == NULL){
+    return NULL;
+  } else {
+    return file_descript->f;
+  }
+  */
 }
+/*
+struct file_description *
+get_file_description(int fd){
+  struct thread *cur_thread = thread_current();
+  struct list_elem *elem;
+  for(elem = list_begin(&cur_thread->file_descriptions); elem != list_end(&cur_thread->file_descriptions); elem = list_next(elem)){
+    struct file_description * file_des = list_entry(elem, struct file_description, fd_list_elem);
+    if (file_des->fd == fd) {
+      return file_des;
+    }
+	}
+  return NULL;
+}
+*/
 
 void
 exit_handler(struct intr_frame *f, uint32_t exit_code) {
+  //NEED TO CLOSE ALL FILES IN thread_current()->file_descriptions
   f->eax = exit_code;
   thread_current ()->wait_status->exit_status = exit_code;
   printf ("%s: exit(%d)\n", thread_current ()->name, exit_code);
