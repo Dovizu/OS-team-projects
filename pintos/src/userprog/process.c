@@ -62,7 +62,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
   
-  sema_init (&temporary, 0);
+  //sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -80,17 +80,19 @@ process_execute (const char *file_name)
   char* save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
   tid = thread_create (file_name, PRI_DEFAULT, start_process, args);
+
   struct thread *t = thread_find_by_tid(tid);
   wait_status_t *child_stat = NULL;
   if (t != NULL) {
     child_stat = t->wait_status;
   }
-  sema_down(&args->load);
   
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
     return tid;
   }
+
+  sema_down(&args->load);
   
   if (args->load_status == -1){
     return -1;
@@ -124,9 +126,12 @@ start_process (void *file_name_)
   sema_up(&args->load);
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
-    thread_exit ();
+  if (!success) {
 
+      thread_current ()->wait_status->exit_status = -1;
+      printf ("%s: exit(%d)\n", thread_current ()->name, -1);
+    thread_exit ();
+  }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
