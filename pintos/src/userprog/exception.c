@@ -87,11 +87,11 @@ kill (struct intr_frame *f)
     case SEL_UCSEG:
       /* User's code segment, so it's a user exception, as we
          expected.  Kill the user process.  */
-      thread_current()->wait_status->exit_status = -1;
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      thread_exit (); 
+      exit_handler(f, -1);
+      // thread_exit (); 
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -104,14 +104,10 @@ kill (struct intr_frame *f)
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
          kernel. */
-      // thread_current()->wait_status->exit_status = -1;
-      // f->eax = -1;
-      // // thread_current ()->wait_status->exit_status = -1;
-      // printf ("%s: exit(%d)\n", thread_current ()->name, -1);
-      exit_handler(f, -1);
       printf ("Interrupt %#04x (%s) in unknown segment %04x\n",
              f->vec_no, intr_name (f->vec_no), f->cs);
-      thread_exit ();
+      exit_handler(f, -1);
+      // thread_exit ();
     }
 }
 
@@ -158,7 +154,6 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  thread_current()->wait_status->exit_status = -1;
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
