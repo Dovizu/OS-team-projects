@@ -126,6 +126,9 @@ struct thread
     struct list file_descriptions;
     int next_fd_num;
     struct lock fd_num_lock;
+    
+    /* executable file that this thread run if exist. */
+    struct file * exec;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
