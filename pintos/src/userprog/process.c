@@ -191,6 +191,12 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   
+  struct list_elem *fd_elem;
+  for(fd_elem=list_begin(&cur->file_descriptions); fd_elem!=list_end(&cur->file_descriptions); fd_elem=list_next(fd_elem)) {
+    struct file_description * fdesc = list_entry(fd_elem, struct file_description, fd_list_elem);
+    file_close(fdesc->f);
+  }
+
   int exit = cur->wait_status->exit_status;
   lock_acquire(&cur->wait_status->ref_cnt_lock);
   cur->wait_status->ref_cnt -= 1;
@@ -328,6 +334,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   /* Open executable file. */
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -335,6 +342,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
   
   file_deny_write(file);
+
+  struct file_description *newFD = malloc(sizeof(struct file_description));
+  lock_acquire(&t->fd_num_lock);
+  newFD->fd = t->next_fd_num;
+  t->next_fd_num = t->next_fd_num +1;
+  lock_release(&t->fd_num_lock);
+  if (file != NULL) {
+    newFD->f = file;
+    list_push_front(&(t->file_descriptions), &(newFD->fd_list_elem));
+  } 
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -422,10 +439,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
+ if (!success) {
   file_close (file);
+ }
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
