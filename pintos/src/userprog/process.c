@@ -20,8 +20,6 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 
-
-static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static bool push_args_to_stack(void **esp, char *args, char *save_ptr);
@@ -62,11 +60,10 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
   
-  //sema_init (&temporary, 0);
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-  struct load_args *args = palloc_get_page(0);
+  struct load_args *args = malloc(sizeof(struct load_args));
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
@@ -89,6 +86,7 @@ process_execute (const char *file_name)
   
   if (tid == TID_ERROR) {
     palloc_free_page (fn_copy);
+    free(args);
     return tid;
   }
 
@@ -97,6 +95,7 @@ process_execute (const char *file_name)
   if (args->load_status == -1){
     return -1;
   } 
+  free(args);
   if (child_stat != NULL) {
     list_push_back(&thread_current()->child_statuses, &child_stat->wait_elem);
   }
@@ -127,9 +126,8 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
-
-      thread_current ()->wait_status->exit_status = -1;
-      printf ("%s: exit(%d)\n", thread_current ()->name, -1);
+    thread_current ()->wait_status->exit_status = -1;
+    printf ("%s: exit(%d)\n", thread_current ()->name, -1);
     thread_exit ();
   }
   /* Start the user process by simulating a return from an
@@ -190,8 +188,23 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  
-  int exit = cur->wait_status->exit_status;
+  lock_acquire(&filesys_lock);
+  if (cur->exec) {
+    file_close(cur->exec);
+    cur->exec = NULL;
+  }
+  struct list_elem *fd_elem;
+  for(fd_elem=list_begin(&cur->file_descriptions); fd_elem!=list_end(&cur->file_descriptions); NULL) {
+    struct file_description * fdesc = list_entry(fd_elem, struct file_description, fd_list_elem);
+    fd_elem=list_next(fd_elem);
+    file_close(fdesc->f);
+    list_remove(&fdesc->fd_list_elem);
+    free(fdesc);
+    
+    
+  }
+  lock_release(&filesys_lock);
+
   lock_acquire(&cur->wait_status->ref_cnt_lock);
   cur->wait_status->ref_cnt -= 1;
   lock_release(&cur->wait_status->ref_cnt_lock);
@@ -324,17 +337,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *save_ptr;
   file_name = strtok_r((char *)file_name, " ", &save_ptr);
   
-  
-  
   /* Open executable file. */
+  lock_acquire(&filesys_lock); 
   file = filesys_open (file_name);
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      lock_release(&filesys_lock);
       goto done; 
     }
-  
+  t->exec= file;
   file_deny_write(file);
+  lock_release(&filesys_lock);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -422,10 +437,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -591,7 +606,7 @@ push_args_to_stack(void **esp, char *args, char *save_ptr)
   strlcpy(*esp, args, length);
   addresses[0] = *esp;
   /* store the actual arguments to the process*/
-  while((args = strtok_r(NULL, " ", &save_ptr)) != NULL) {
+  while((args = strtok_r(NULL, " ", &save_ptr)) != NULL && argc <= 1000) {
     argc += 1;
     length = strlen(args) + 1;
     *esp -= length;
@@ -626,6 +641,6 @@ push_args_to_stack(void **esp, char *args, char *save_ptr)
   /* fake return address */
   *esp -= sizeof(uint32_t);
   **((uint32_t **)esp) = (uint32_t) 0;
-  
+  palloc_free_page(addresses);
   return 1;
 }
