@@ -1,4 +1,5 @@
 #include "userprog/syscall.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
@@ -36,7 +37,7 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   uint32_t* args = ((uint32_t*) f->esp);
-  exit_if_invalid(args, f);
+  exit_if_invalid((void*)args, f);
   
   switch(args[0]) {
     case SYS_HALT: {
@@ -49,8 +50,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_EXEC: {
-      char * file_name = (const char*)get_arg(f, args, 1);
-      exit_if_invalid (file_name, f);
+      char * file_name = (char*)get_arg(f, args, 1);
+      exit_if_invalid ((void*)file_name, f);
       char * fn_copy = palloc_get_page (0);
       strlcpy (fn_copy, file_name, PGSIZE);
       f->eax=process_execute(fn_copy);
@@ -63,25 +64,25 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
     case SYS_CREATE: {
-      char * file = (const char *) get_arg(f, args, 1);
+      char * file = (char *) get_arg(f, args, 1);
       off_t initial_size = (off_t) get_arg(f, args, 2);
-      exit_if_invalid (file, f);
+      exit_if_invalid ((void*)file, f);
       lock_acquire(&filesys_lock);
       f->eax = filesys_create(file,initial_size);
       lock_release(&filesys_lock);        
       break;
     }
     case SYS_REMOVE: {
-      char * file = (const char *) get_arg(f, args, 1);
-      exit_if_invalid (file, f);
+      char * file = (char *) get_arg(f, args, 1);
+      exit_if_invalid ((void*)file, f);
       lock_acquire(&filesys_lock);          
       f->eax = filesys_remove(file);
       lock_release(&filesys_lock);        
       break;
     }
     case SYS_OPEN: {
-      const char * file = (const char *) get_arg(f, args, 1);
-      exit_if_invalid (file, f);
+      const char * file = (char *) get_arg(f, args, 1);
+      exit_if_invalid ((void*)file, f);
       
       lock_acquire(&filesys_lock);      
       struct file * newFile = filesys_open(file);     
@@ -89,7 +90,8 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = -1;
       } else {
         struct thread *cur_thread = thread_current();
-        struct file_description *newFD = malloc(sizeof(struct file_description));
+        struct file_description *newFD
+        newFD = (struct file_description*)malloc(sizeof(struct file_description));
         lock_acquire(&(cur_thread->fd_num_lock));
         newFD->fd = cur_thread->next_fd_num;
         cur_thread->next_fd_num = cur_thread->next_fd_num +1;
@@ -119,7 +121,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       void * buffer = (void*) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
       exit_if_invalid (buffer, f);
-      exit_if_invalid ((char*)buffer + size, f);
+      exit_if_invalid ((void*)((char*)buffer + size), f);
       if (fd == 0) {
         int read = 0;
         while (read <= size) {
@@ -145,7 +147,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       void * buffer = (void *) get_arg(f, args, 2);
       unsigned size = (unsigned) get_arg(f, args, 3);
       exit_if_invalid (buffer, f);
-      exit_if_invalid ((char*)buffer + size, f);
+      exit_if_invalid ((void*)((char*)buffer + size), f);
       if (fd == 1) {
         putbuf((char*) buffer, (int) size);
         f->eax = size;
@@ -232,7 +234,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 uint32_t
 get_arg (struct intr_frame *f, uint32_t* args, int index) 
 {
-  exit_if_invalid (&args[index], f); 
+  exit_if_invalid ((void*)(&args[index]), f); 
   return args[index];
 }
 

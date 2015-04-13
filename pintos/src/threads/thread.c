@@ -619,16 +619,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->file_descriptions));
   t->next_fd_num = 2;
   lock_init(&(t->fd_num_lock));
-  /*
-  struct file_description *standardIn;
-  standardIn->fd = 0;
-  standardIn->f = stdin;
-  struct file_description *standardOut;
-  standardOut->fd = 1;
-  standardOut->f = stdout;
-  list_push_back(&(t->file_descriptions), standardIn);
-  list_push_back(&(t->file_descriptions), standardOut);
-  */
   t->magic = THREAD_MAGIC;
 
   list_init(&t->child_statuses);
