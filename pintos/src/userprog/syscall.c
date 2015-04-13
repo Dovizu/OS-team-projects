@@ -90,7 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         f->eax = -1;
       } else {
         struct thread *cur_thread = thread_current();
-        struct file_description *newFD
+        struct file_description *newFD;
         newFD = (struct file_description*)malloc(sizeof(struct file_description));
         lock_acquire(&(cur_thread->fd_num_lock));
         newFD->fd = cur_thread->next_fd_num;
